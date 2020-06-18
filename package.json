@@ -1,0 +1,29 @@
+{
+  "name": "magewell-ultrastream",
+  "shortname": "magewell",
+  "version": "0.0.1",
+  "description": "Magewell Ultra Stream plugin for companion",
+  "manufacturer": "Magewell",
+  "product": "Ultra Stream",
+  "keywords": [
+    "Stream"
+  ],
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "trash dist && yarn build:main",
+    "build:main": "tsc -p tsconfig.build.json",
+    "build:watch": "tsc -p tsconfig.build.json --watch",
+    "postinstall": "yarn build"
+  },
+  "author": "Aart Jan Kaptijn <aartjan@kaptijn.online>",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^0.19.2",
+    "ts-md5": "^1.2.7"
+  },
+  "devDependencies": {
+    "@types/node": "^12.0.4",
+    "trash-cli": "^3.0.0",
+    "typescript": "^3.6.3"
+  }
+}
