@@ -39,6 +39,7 @@ class MagewellInstance extends InstanceSkel<MagewellConfig> {
   }
 
   updateConfig(_config: MagewellConfig): void {
+    this.config = _config;
     this.client.disconnect().then(() => {
       this.initMagewell();
     });
@@ -59,8 +60,13 @@ class MagewellInstance extends InstanceSkel<MagewellConfig> {
 
   updateStatus() {
     this.client.getStatus().then(s => {
+      const oldStatus = this.state.status;
       this.state.status = s;
-      this.checkFeedbacks();
+
+      if (oldStatus?.["cur-status"] != s?.["cur-status"]) {
+        // Current feedbacks only handle the cur-status
+        this.checkFeedbacks();
+      }
     });
   }
 

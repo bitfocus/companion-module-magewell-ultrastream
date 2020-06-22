@@ -17,28 +17,26 @@ export function GetFeedbacks(instance: InstanceSkel<MagewellConfig>, state: Mage
       options: [
         {
           type: 'colorpicker',
-          label: 'Color Live',
-          id: 'color_live',
-          default: instance.rgb(222, 0, 0)
+          label: 'Foreground color',
+          id: 'fg',
+          default: instance.rgb(255, 255, 255)
         },
         {
           type: 'colorpicker',
-          label: 'Color Ready',
-          id: 'color_ready',
-          default: instance.rgb(209, 209, 0)
+          label: 'Background color',
+          id: 'bg',
+          default: instance.rgb(222, 0, 0)
         }
       ],
       callback: (evt: CompanionFeedbackEvent): CompanionFeedbackResult => {
         if (!state.status) return {};
         if ((state.status["cur-status"] & DeviceStatus.statusRecord) == DeviceStatus.statusRecord) {
           return {
-            bgcolor: Number(evt.options.color_live)
-          }
-        } else {
-          return {
-            bgcolor: Number(evt.options.color_ready)
+            bgcolor: evt.options.bg as number,
+            color: evt.options.fg as number
           }
         }
+        return {};
       }
     },
     [FeedbackId.Stream]: {
@@ -47,28 +45,26 @@ export function GetFeedbacks(instance: InstanceSkel<MagewellConfig>, state: Mage
       options: [
         {
           type: 'colorpicker',
-          label: 'Color Live',
-          id: 'color_live',
-          default: instance.rgb(222, 0, 0)
+          label: 'Foreground color',
+          id: 'fg',
+          default: instance.rgb(255, 255, 255)
         },
         {
           type: 'colorpicker',
-          label: 'Color Ready',
-          id: 'color_ready',
-          default: instance.rgb(209, 209, 0)
+          label: 'Background color',
+          id: 'bg',
+          default: instance.rgb(222, 0, 0)
         }
       ],
       callback: (evt: CompanionFeedbackEvent): CompanionFeedbackResult => {
         if (!state.status) return {};
         if ((state.status["cur-status"] & DeviceStatus.statusLiving) == DeviceStatus.statusLiving) {
           return {
-            bgcolor: Number(evt.options.color_live)
-          }
-        } else {
-          return {
-            bgcolor: Number(evt.options.color_ready)
+            bgcolor: evt.options.bg as number,
+            color: evt.options.fg as number
           }
         }
+        return {};
       }
     }
   }
