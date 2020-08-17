@@ -53,6 +53,72 @@ declare module Magewell {
     statusTestLock = 0x10000000,  // Reserved
     statusReboot = 0x20000000,  // rebooting
   }
+
+  export const enum ApiResultCode {
+    retLivingAuthErr = 30,          // Live stream status: the authentication is error
+    retLivingNotset = 29,          // Live stream address is not set 
+    retLivingDNS = 28,          // Live stream status: Resolving DNS
+    retInit = 27,          // Initial status
+    retLivingAuthing = 25,          // Live stream status: the authorization is in progress
+    retLivingWaiting = 24,          // Live stream status: the device is waiting for connection to the stream server
+    retLivingConnecting = 23,          // Live stream status: the device is connecting to the stream server
+    retLivingConnected = 22,          // Live stream status: the stream server has connected
+    retPushReboot = 21,
+    retAudioSignalChange = 20,
+    retBlueWrite = 19,
+    retBlueRead = 18,
+    retBlueShutDown = 17,
+    retDiskOn = 16,
+    retDiskOff = 15,
+    retDiskChange = 14,
+    retSnapshotOver = 13,
+    retPushReset = 12,
+    retPushLiving = 11,
+    retPushRecord = 10,
+    retSignalChange = 9,
+    retRouteChange = 8,
+    retIPChange = 7,
+    retNetChange = 6,
+    retCancel = 5,           // Request is canceled
+    retLowSpace = 4,           // There is not enough free space on the storage device.
+    retLowSpeed = 3,           // The storage device is too slow to record smooth video. 
+    retRunning = 2,           // The request is running
+    retRepeat = 1,           // Repeat request
+    retSucceed = 0,           // Request has succeeded
+    errPasswd = -1,          // Password is error
+    errOccupied = -2,          // The device is being used by others currently
+    errDisconnect = -3,          // Reserved
+    errDevice = -4,
+    errDisk = -5,
+    errUnconnect = -6,
+    errKey = -7,
+    errVersion = -8,
+    errBusy = -9,          // System is busy
+    errParam = -10,         // Error request parameters
+    errUsage = -11,         // Reserved
+    errTimeout = -12,
+    errIP = -13,         // Reserved
+    errNotFound = -14,         // Data does not exist
+    errFile = -15,         // Error file
+    errNoSpace = -16,         // There is not any free space on the storage device.
+    errNeedAuth = -17,         // An authentication is required.
+    errSystem = -18,         // System error
+    errDiskSpeed = -19,
+    errEmpty = -20,
+    errNetwork = -21,
+    errEvent = -22,
+    errCodec = -23,
+    errBlue = -24,
+    errNoUser = -25,          // This user does not exist
+    errSameName = -27,          // The name already exists
+    errString = -28,          // Input characters are not valid
+    errChannelsLimited = -29,          // Stream simultaneously to 2 servers at most.
+    err8MLimited = -30,          // When the bitrate is 8 Mbps, the encoder can stream to 1 server only.
+    errFacebookLimited = -31,          // As is required by Facebook's Terms of Service, the device can not stream simultaneously to Facebook and other online streaming services.
+    errCodecLimited = -32,          // Live stream is not allowed when HEVC encoder is used.
+    err4GLimited = -33,          // The maximum size of a single saved recording file should be no more than 4G
+    errMWFUnsupported = -34           // The update package does not match current model or hardware version of the product
+  }
 }
 
 export = Magewell;
