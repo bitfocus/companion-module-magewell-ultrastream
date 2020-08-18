@@ -2,7 +2,7 @@ import { MagewellConfig } from "./config";
 import axios from 'axios';
 import { Md5 } from 'ts-md5';
 import InstanceSkel = require("../../../instance_skel");
-import { GetStatusResponse, BaseResponse } from "./magewell";
+import { GetStatusResponse, BaseResponse, ApiResultCode } from "./magewell";
 
 export class MagewellClient {
   private cookie?: string;
@@ -10,7 +10,7 @@ export class MagewellClient {
   constructor(private instance: InstanceSkel<MagewellConfig>) {
   }
 
-  private async get<T extends BaseResponse>(method: string): Promise<T|undefined> {
+  private async get<T extends BaseResponse>(method: string, retry: boolean = false): Promise<T|undefined> {
     const url = `http://${this.instance.config.host}/usapi?method=${method}`;
 
     if (!this.cookie && !await this.initialize()) return;
@@ -22,7 +22,15 @@ export class MagewellClient {
     });
 
     if (result.data.result != 0) {
-      this.instance.log('warn', method + ' call failed.');
+      this.instance.log('warn', method + ' call failed:' + result.data.result);
+
+      if (result.data.result == ApiResultCode.errNeedAuth || result.data.result == ApiResultCode.errPasswd) {
+        // Auth error, try to reconnect
+        if (!retry) {
+          await this.initialize(true);
+          return await this.get<T>(method, true);
+        }
+      }
     }
 
     return result.data;
@@ -56,6 +64,7 @@ export class MagewellClient {
       return;
     }
 
+    this.instance.log('info', 'Connected to Magewell Ultra Stream');
     this.instance.status(this.instance.STATUS_OK, 'Connected');
     return status;
   }
