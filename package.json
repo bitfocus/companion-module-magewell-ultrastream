@@ -18,7 +18,7 @@
   "author": "Aart Jan Kaptijn <aartjan@kaptijn.online>",
   "license": "MIT",
   "dependencies": {
-    "axios": "^0.19.2",
+    "axios": "^0.21.1",
     "ts-md5": "^1.2.7"
   },
   "devDependencies": {
