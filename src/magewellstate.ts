@@ -1,5 +1,6 @@
-import { GetStatusResponse } from "./magewell";
+import { GetSettingsResponse, GetStatusResponse } from "./magewell";
 
 export class MagewellState {
   status?: GetStatusResponse;
+  settings?: GetSettingsResponse;
 }

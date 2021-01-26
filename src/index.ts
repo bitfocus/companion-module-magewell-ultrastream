@@ -3,9 +3,10 @@ import { MagewellConfig, GetConfigFields } from './config';
 import { CompanionSystem, CompanionInputField, CompanionActionEvent } from '../../../instance_skel_types';
 import { HandleAction, GetActions } from './actions';
 import { MagewellClient } from './client';
-import { GetFeedbacks } from './feedbacks';
+import { FeedbackId, GetFeedbacks } from './feedbacks';
 import { MagewellState } from './magewellstate';
 import { GetPresets } from './presets';
+import { InitVariables, UpdateVariables } from './variables';
 
 class MagewellInstance extends InstanceSkel<MagewellConfig> {
   private client: MagewellClient;
@@ -53,7 +54,7 @@ class MagewellInstance extends InstanceSkel<MagewellConfig> {
     return this.client.initialize().then(s => {
       this.state.status = s;
       if (!this.updater) {
-        this.updater = setInterval(() => this.updateStatus(), 1000 * 5);
+        this.updater = setInterval(() => this.updateStatus(), 1000);
       }
     })
   }
@@ -67,7 +68,32 @@ class MagewellInstance extends InstanceSkel<MagewellConfig> {
         // Current feedbacks only handle the cur-status
         this.checkFeedbacks();
       }
+
+      UpdateVariables(this, this.state);
     });
+
+    this.client.getSettings().then(s => {
+      const oldSettings = this.state.settings;
+      this.state.settings = s;
+
+      this.updateActionsAndFeedbacks();
+
+      if (oldSettings?.['stream-server'] != s?.['stream-server']) {
+        var changed = false;
+        s?.['stream-server'].forEach(streamServer => {
+          const oldStatus = oldSettings?.['stream-server']?.find(ss => ss.id == streamServer.id);
+          changed = changed || (oldStatus?.['is-use'] != streamServer['is-use']);
+        });
+        if (changed) {
+          this.checkFeedbacks(FeedbackId.Server);
+        }
+      }
+    });
+  }
+
+  updateActionsAndFeedbacks() {
+    this.setActions(GetActions(this.state.settings));
+    this.setFeedbackDefinitions(GetFeedbacks(this, this.state));
   }
 
   public action(action: CompanionActionEvent): void {
@@ -75,10 +101,10 @@ class MagewellInstance extends InstanceSkel<MagewellConfig> {
   }
 
   initCompanion() {
-    this.setActions(GetActions());
-    this.setFeedbackDefinitions(GetFeedbacks(this, this.state));
+    this.updateActionsAndFeedbacks();
     this.setPresetDefinitions(GetPresets(this));
     this.checkFeedbacks();
+    InitVariables(this, this.state);
   }
 }
 export = MagewellInstance

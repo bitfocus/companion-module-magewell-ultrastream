@@ -1,7 +1,7 @@
 {
   "name": "magewell-ultrastream",
   "shortname": "magewell",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Magewell Ultra Stream plugin for companion",
   "manufacturer": "Magewell",
   "product": "Ultra Stream",
@@ -18,12 +18,12 @@
   "author": "Aart Jan Kaptijn <aartjan@kaptijn.online>",
   "license": "MIT",
   "dependencies": {
-    "axios": "^0.19.2",
+    "axios": "^0.21.1",
     "ts-md5": "^1.2.7"
   },
   "devDependencies": {
     "@types/node": "^12.19.3",
     "rimraf": "^3.0.2",
-    "typescript": "^4.0.5"
+    "typescript": "^4.1.3"
   }
 }

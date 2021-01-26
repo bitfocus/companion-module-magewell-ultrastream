@@ -1,18 +1,57 @@
 declare module Magewell {
+  export interface GetSettingsResponse extends BaseResponse {
+    "name": string,
+    "passwd": number,
+    "is-settings": number,
+    "is-ssdp": number,
+    "is-startup": number,
+    "is-startup-rec": number,
+    "is-startup-live": number,
+    "is-signal-lost": number,
+    "is-hdmi-rec-ctrl": number,
+    "softap": any,
+    "date-time": any,
+    "rec-control": any,
+    "video-color": any,
+    "volume": any,
+    "rec-stream": number,
+    "live-stream": number,
+    "mws-stream": number,
+    "main-stream": any,
+    "sub-stream": any,
+    "audio": any,
+    "eth": any,
+    "stream-server": StreamServer[];
+  }
+
+  export interface StreamServer {
+    "id": number,
+    "type": number,
+    "url": string,
+    "key": string,
+    "is-auth": number,
+    "user": string,
+    "passwd": string,
+    "is-use": number,
+    "token": string,
+    "net-mode": number,
+    "name": string
+  }
+
   export interface GetStatusResponse extends BaseResponse {
     "cur-status": number;
     "last-rec-status": number;
     "cur-time": string;
     "box-name": string;
     "lock-user"?: (null)[] | null;
-    "rec-status": any;
-    "live-status": any;
+    "rec-status": RecordingStatus;
+    "live-status": LiveStatus;
     "upgrade-status": any;
     "format-status": any;
     "disk-test": any;
     "living-test": any;
     "check-upgrade": any;
-    "input-signal": any;
+    "input-signal": InputSignal;
     usb: any;
     sd: any;
     wifi: any;
@@ -22,8 +61,47 @@ declare module Magewell {
     downgrade: any;
   }
 
+  export interface InputSignal {
+    status: number,
+    cx: number,
+    cy: number,
+    interlaced: number,
+    "frame-rate": number,
+    "channel-valid": number,
+    "is-lpcm": number,
+    "bits-per-sample": number,
+    "sample-rate": number
+  }
+
+  export interface RecordingStatus {
+    "result": number,
+    "run-ms": number,
+    "cur-bps": number,
+    "avg-bps": number,
+    "client-id": string
+  }
+
+  export interface LiveStatus {
+    "result": number,
+    "run-ms": number,
+    "cur-bps": number,
+    "avg-bps": number,
+    "net": number,
+    "result2": number,
+    "cur-bps2": number,
+    "net2": number,
+    "client-id": string
+  }
+
   export interface BaseResponse {
     result: number;
+  }
+
+  export const enum StreamServerType {
+    RTMP = 0,
+    Twitch = 1,
+    YouTube = 2,
+    Facebook = 3
   }
 
   export const enum DeviceStatus {
@@ -118,6 +196,12 @@ declare module Magewell {
     errCodecLimited = -32,          // Live stream is not allowed when HEVC encoder is used.
     err4GLimited = -33,          // The maximum size of a single saved recording file should be no more than 4G
     errMWFUnsupported = -34           // The update package does not match current model or hardware version of the product
+  }
+
+  export interface Duration {
+    hours: number;
+    minutes: number;
+    seconds: number;
   }
 }
 
