@@ -2,7 +2,7 @@ import { MagewellConfig } from "./config";
 import axios from 'axios';
 import { Md5 } from 'ts-md5';
 import InstanceSkel = require("../../../instance_skel");
-import { GetStatusResponse, BaseResponse, ApiResultCode } from "./magewell";
+import { GetStatusResponse, BaseResponse, ApiResultCode, GetSettingsResponse } from "./magewell";
 
 export class MagewellClient {
   private cookie?: string;
@@ -10,8 +10,8 @@ export class MagewellClient {
   constructor(private instance: InstanceSkel<MagewellConfig>) {
   }
 
-  private async get<T extends BaseResponse>(method: string, retry: boolean = false): Promise<T|undefined> {
-    const url = `http://${this.instance.config.host}/usapi?method=${method}`;
+  private async get<T extends BaseResponse>(method: string, params?: string, retry: boolean = false): Promise<T|undefined> {
+    const url = `http://${this.instance.config.host}/usapi?method=${method}` + (params ?? '');
 
     if (!this.cookie && !await this.initialize()) return;
 
@@ -28,7 +28,7 @@ export class MagewellClient {
         // Auth error, try to reconnect
         if (!retry) {
           await this.initialize(true);
-          return await this.get<T>(method, true);
+          return await this.get<T>(method, params, true);
         }
       }
     }
@@ -73,6 +73,10 @@ export class MagewellClient {
     return this.get<GetStatusResponse>('get-status');
   }
 
+  async getSettings(): Promise<GetSettingsResponse|undefined> {
+    return this.get<GetSettingsResponse>('get-settings');
+  }
+
   async startRecording() {
     return this.get<BaseResponse>('start-rec');
   }
@@ -87,6 +91,14 @@ export class MagewellClient {
 
   async stopLive() {
     return this.get<BaseResponse>('stop-live');
+  }
+
+  async enableServer(server: number) {
+    return this.get<BaseResponse>('enable-server', `&id=${server}&is-use=1`);
+  }
+
+  async disableServer(server: number) {
+    return this.get<BaseResponse>('enable-server', `&id=${server}&is-use=0`);
   }
 
   async disconnect() {

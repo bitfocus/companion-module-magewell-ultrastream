@@ -5,3 +5,10 @@ Controls a Magewell Ultrastream device.
 
 ### v0.0.1
 First release, supports start/stop of the recording and the stream
+
+### v0.0.2
+Handle authorization errors, reconnect after expired token
+
+### v0.0.3
+Add support for enable/disable streaming servers
+Add some variables
