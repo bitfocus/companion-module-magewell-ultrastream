@@ -10,7 +10,7 @@
   ],
   "main": "dist/index.js",
   "scripts": {
-    "build": "rimraf dist && yarn build:main",
+    "build": "npx rimraf dist && npx typescript@~4.1.3 -p tsconfig.build.json",
     "build:main": "tsc -p tsconfig.build.json",
     "build:watch": "tsc -p tsconfig.build.json --watch",
     "postinstall": "yarn build"
@@ -18,11 +18,11 @@
   "author": "Aart Jan Kaptijn <aartjan@kaptijn.online>",
   "license": "MIT",
   "dependencies": {
+    "@types/node": "^12.19.3",
     "axios": "^0.21.1",
     "ts-md5": "^1.2.7"
   },
   "devDependencies": {
-    "@types/node": "^12.19.3",
     "rimraf": "^3.0.2",
     "typescript": "^4.1.3"
   }
