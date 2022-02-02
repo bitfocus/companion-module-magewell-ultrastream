@@ -1,7 +1,7 @@
 {
 	"name": "magewell-ultrastream",
 	"shortname": "magewell",
-	"version": "0.0.3",
+	"version": "0.0.4",
 	"description": "Magewell Ultra Stream plugin for companion",
 	"manufacturer": "Magewell",
 	"product": "Ultra Stream",
