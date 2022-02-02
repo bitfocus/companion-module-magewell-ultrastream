@@ -1,29 +1,38 @@
 {
-  "name": "magewell-ultrastream",
-  "shortname": "magewell",
-  "version": "0.0.3",
-  "description": "Magewell Ultra Stream plugin for companion",
-  "manufacturer": "Magewell",
-  "product": "Ultra Stream",
-  "keywords": [
-    "Stream"
-  ],
-  "main": "dist/index.js",
-  "scripts": {
-    "build": "npx rimraf dist && npx typescript@~4.1.3 -p tsconfig.build.json",
-    "build:main": "tsc -p tsconfig.build.json",
-    "build:watch": "tsc -p tsconfig.build.json --watch",
-    "postinstall": "yarn build"
-  },
-  "author": "Aart Jan Kaptijn <aartjan@kaptijn.online>",
-  "license": "MIT",
-  "dependencies": {
-    "@types/node": "^12.19.3",
-    "axios": "^0.21.1",
-    "ts-md5": "^1.2.7"
-  },
-  "devDependencies": {
-    "rimraf": "^3.0.2",
-    "typescript": "^4.1.3"
-  }
+	"name": "magewell-ultrastream",
+	"shortname": "magewell",
+	"version": "0.0.3",
+	"description": "Magewell Ultra Stream plugin for companion",
+	"manufacturer": "Magewell",
+	"product": "Ultra Stream",
+	"keywords": [
+		"Stream"
+	],
+	"main": "dist/index.js",
+	"scripts": {
+		"build": "npx rimraf dist && npx typescript@~4.1.3 -p tsconfig.build.json",
+		"build:main": "tsc -p tsconfig.build.json",
+		"build:watch": "tsc -p tsconfig.build.json --watch",
+		"postinstall": "yarn build"
+	},
+	"author": "Aart Jan Kaptijn <aartjan@kaptijn.online>",
+	"license": "MIT",
+	"dependencies": {
+		"@types/node": "^12.19.3",
+		"axios": "^0.21.1",
+		"ts-md5": "^1.2.7"
+	},
+	"devDependencies": {
+		"rimraf": "^3.0.2",
+		"typescript": "^4.1.3"
+	},
+	"homepage": "https://github.com/bitfocus/companion-module-magewell-ultrastream#readme",
+	"bugs": {
+		"url": "https://github.com/bitfocus/companion-module-magewell-ultrastream/issues"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/bitfocus/companion-module-magewell-ultrastream.git"
+	},
+	"api_version": "1.0.0"
 }
