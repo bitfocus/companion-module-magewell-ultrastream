@@ -23,7 +23,7 @@ export class MagewellClient {
     }).catch(e => {
       this.instance.log('warn', method + ' call failed:' + e.response?.data.result);
     }).then(async result => {
-      if (result == null) return;
+      if (!result) return;
 
       if (result.data.result != 0) {
         this.instance.log('warn', method + ' call failed:' + result.data.result);
@@ -61,7 +61,7 @@ export class MagewellClient {
           this.instance.log('warn', 'Authentication failed.');
           this.instance.status(this.instance.STATUS_ERROR, 'Authentication failed');
         }).then(async result => {
-          if (result == null) return;
+          if (!result) return;
 
           if (result.data.result != 0) {
             this.instance.log('warn', 'Authentication failed.');
