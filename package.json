@@ -1,7 +1,7 @@
 {
 	"name": "magewell-ultrastream",
 	"shortname": "magewell",
-	"version": "0.0.5",
+	"version": "0.0.6",
 	"description": "Magewell Ultra Stream plugin for companion",
 	"manufacturer": "Magewell",
 	"product": "Ultra Stream",
@@ -10,7 +10,7 @@
 	],
 	"main": "dist/index.js",
 	"scripts": {
-		"build": "npx rimraf dist && npx typescript@~4.8.3 -p tsconfig.build.json",
+		"build": "npx rimraf dist && npx --package=typescript@~4.8.3 -c 'tsc -p tsconfig.build.json'",
 		"build:main": "tsc -p tsconfig.build.json",
 		"build:watch": "tsc -p tsconfig.build.json --watch",
 		"postinstall": "yarn build"
