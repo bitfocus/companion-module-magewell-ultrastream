@@ -27,12 +27,14 @@ export function GetConfigFields(): SomeCompanionConfigField[] {
 			id: 'username',
 			label: 'Username',
 			width: 12,
+			default: 'Admin',
 		},
 		{
 			type: 'textinput',
 			id: 'password',
 			label: 'Password',
 			width: 12,
+			default: 'Admin',
 		},
 	]
 }
