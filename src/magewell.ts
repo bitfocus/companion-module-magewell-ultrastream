@@ -1,4 +1,39 @@
-export interface GetSettingsResponse extends BaseResponse {
+export enum MagewellModel {
+	UltraStreamHdmi = 'Ultra Stream HDMI',
+	UltraStreamSdi = 'Ultra Stream SDI',
+	UltraEncodeHdmi = 'Ultra Encode HDMI',
+	UltraEncodeSdi = 'Ultra Encode SDI',
+	UltraEncodeHdmiPlus = 'Ultra Encode HDMI Plus',
+	UltraEncodeSdiPlus = 'Ultra Encode SDI Plus',
+	UltraEncodeAio = 'Ultra Encode AIO',
+}
+
+export enum MagewellProduct {
+	UltraStream = 'Ultra Stream',
+	UltraEncode = 'Ultra Encode',
+}
+
+export interface GetInfoResponse extends BaseResponse {
+	product: Product
+}
+
+export interface Product {
+	sn: string
+	'product-id': number
+	'hardware-ver': string
+	'firmware-id': number
+	'firmware-ver-s': string
+	'factory-firmware-ver-s': string
+	'product-name': MagewellProduct | string
+	'module-name': MagewellModel | string
+	'manu-name': string
+	features: number
+	'max-lock-count': number
+}
+
+export type GetSettingsResponse = UltraStreamGetSettingsResponse | UltraEncodeGetSettingsResponse
+
+export interface UltraStreamGetSettingsResponse extends BaseResponse {
 	name: string
 	passwd: number
 	'is-settings': number
@@ -20,24 +55,83 @@ export interface GetSettingsResponse extends BaseResponse {
 	'sub-stream': any
 	audio: any
 	eth: any
-	'stream-server': StreamServer[]
+	'stream-server': UltraStreamStreamServer[]
+}
+
+export interface UltraEncodeGetSettingsResponse extends BaseResponse {
+	name: string // device name
+	'is-check-update': number // enable status of auto-check online update
+	'audio-sync-offset': number // audio offset in ms
+	'udp-mtu': number // UDP MTU
+	'enable-ndi-hx3': number // NDI|HX3 enable status
+	softap: any // AP settings
+	'date-time': any // value of date and time
+	'input-source': any // input source value
+	'video-color': any // video information
+	volume: any // audio information
+	'enable-deinterlace': number // deinterlace enable status
+	'3d-output': any // 3D output settings
+	'main-stream': any // main stream settings
+	'sub-stream': any // sub stream settings
+	audio: any // audio settings
+	'audio-streams': [] // ÒôÆµÂëÁ÷ÁÐ±í
+	eth: any // Ethernet information
+	wifi: any // Wi-Fi information
+	rndis: any // USB NET information
+	'stream-server': UltraEncodeStreamServer[] // streaming server list
+	'video-input-format': any // input video format
+	'video-output-format': any // output video format
+	'use-nosignal-file': 1 // whether to show an image when there is no input signal
+	'nosignal-files': [] // no signal images list
+	nas: [] // NAS list
+	'send-file-cloud': [] // Upload server list
+	web: any // Web security management and theme configuration information
+	rec: any // record settings
+	living: any // live settings
+	'lcd-control': any // LCD screen settings
 }
 
 export interface StreamServer {
 	id: number
 	type: number
+	'is-use': number
+	name: string
+}
+
+export interface UltraStreamStreamServer extends StreamServer {
 	url: string
 	key: string
 	'is-auth': number
 	user: string
 	passwd: string
-	'is-use': number
 	token: string
 	'net-mode': number
-	name: string
 }
 
-export interface GetStatusResponse extends BaseResponse {
+export type GetStatusResponse = UltraStreamGetStatusResponse | UltraEncodeGetStatusResponse
+
+export interface UltraEncodeStreamServer extends StreamServer {
+	'source-name': string
+	'group-name': string
+	'enable-discovery': number
+	'discovery-server': string
+	'transport-mode': number
+	'mcast-addr': string
+	'mcast-mask': string
+	'mcast-ttl': number
+	'enable-failover': number
+	'fail-over-ndi-name': string
+	'fail-over-ip-addr': string
+	'enable-web-control': number
+	'enable-ptz-control': number
+	'main-stream': number
+	'prvw-stream': number
+	audio: number
+	opt: number
+	'is-media-hub': number
+}
+
+export interface UltraStreamGetStatusResponse extends BaseResponse {
 	'cur-status': DeviceStatus
 	'last-rec-status': number
 	'cur-time': string
@@ -60,6 +154,53 @@ export interface GetStatusResponse extends BaseResponse {
 	downgrade: any
 }
 
+export interface UltraEncodeGetStatusResponse extends BaseResponse {
+	'cur-status': DeviceStatus // device running status mask
+	'cur-time': string // device current time
+	'box-name': string // device name
+	'input-source': number // input source
+	'input-device': number // input device
+	'cpu-temperature': number
+	'enable-ndi-hx3': number
+	codec: {
+		// codec status
+		'main-stream': any
+		'sub-stream': any
+		audio: any
+	}
+	sysstat: any // device running status
+	'live-status': {
+		// live status
+		live: UltraEncodeLiveStatus[]
+	}
+	'upgrade-status': any // update status
+	'rec-status': {
+		// recording status
+		rec: UltraEncodeRecordingStatus[]
+	}
+	'format-status': any // disk format status
+	'disk-test': any // disk performance test status
+	nas: any // nas connection status
+	'living-test': any // live test status
+	'check-upgrade': any // online update check status
+	'conn-wifi': any // wifi connection status
+	'input-signal': InputSignalStatus // input signal
+	'disk-info': any // disk information
+	wifi: any // wifi network
+	softap: any // AP network
+	eth: any // ethernet network
+	mobile: any // mobile broadband network
+	rndis: any // USB net
+	upgrade: any // new firmware information
+	'channel-count': 2
+	vumeters: Array<number>
+}
+
+export interface InputSignalStatus extends InputSignal {
+	hdmi?: InputSignal
+	sdi?: InputSignal
+}
+
 export interface InputSignal {
 	status: number
 	cx: number
@@ -72,12 +213,68 @@ export interface InputSignal {
 	'sample-rate': number
 }
 
+export interface UltraEncodeRecordingStatus {
+	id: number
+	type: number
+	'is-use': number
+	'is-skd-running': number
+	result: number
+	'run-ms': number
+	'parted-num': number
+	'video-frame-count': number
+	'audio-frame-count': number
+}
+
 export interface RecordingStatus {
 	result: number
 	'run-ms': number
 	'cur-bps': number
 	'avg-bps': number
 	'client-id': string
+}
+
+export type UltraEncodeLiveStatus = UltraEncodeRtmpLiveStatus | UltraEncodeSrtListenerLiveStatus
+
+export interface UltraEncodeBaseLiveStatus {
+	id: number
+	type: number
+	'is-use': number
+	'is-skd-running': number
+	name: string
+	'run-ms': number
+	result: number
+	'stream-index': number
+	'video-frames-totoal': number
+	'audio-frames-totoal': number
+	'video-frames-dropped': number
+	'audio-frames-dropped': number
+}
+
+export interface UltraEncodeSrtListenerLiveStatus extends UltraEncodeBaseLiveStatus {
+	'max-connections': number
+	'num-clients': number
+	clients: UltraEncodeSrtListenerClient[]
+}
+
+export interface UltraEncodeSrtListenerClient {
+	'uptime-ms': number
+	'rrt-ms': number
+	'pkt-send-total': number
+	'pkt-retrans-total': number
+	'buf-ms': number
+	'inst-bps': number
+	'ip-addr': string
+	port: number
+}
+
+export interface UltraEncodeRtmpLiveStatus extends UltraEncodeBaseLiveStatus {
+	'uptime-ms': number
+	'inst-bps': number
+	net: number
+	'video-frames-totoal': number
+	'audio-frames-totoal': number
+	'video-frames-dropped': number
+	'audio-frames-dropped': number
 }
 
 export interface LiveStatus {
@@ -119,27 +316,30 @@ export const enum DeviceStatus {
 	statusUpgrade = 0x4000, // Firmware update is in progress
 	statusNetTest = 0x8000, // Streaming test is in progress
 	statusPasswd = 0x10000, // Device password has been set
-	statusOccupied = 0x20000, // Device has been locked by app(s), at most 2 simultaneously
-	statusFormatDisk = 0x100000, // USB format is in progress
+	statusOccupied = 0x20000, // Device has been locked by app(s), at most 2 apps simultaneously
+	statusFormatDisk = 0x100000, // USB is formatting
+	statusFormatSD = 0x200000, // SD card is formatting
 	statusSearchWifi = 0x400000, // The device is searching for available Wi-Fi networks
-	statusConnectWifi = 0x800000, // The device is connecting to a Wi-Fi network
-	statusConnectBlue = 0x1000000, // Reserved
-	statusCheckUpgrade = 0x2000000, // The device is detecting if there is a new firmware version
-	statusReset = 0x4000000, // resetting
+	statusConnectWifi = 0x800000, // The device is connecting to a Wi-Fi hotspot
+	statusLoading = 0x1000000, // The device is loading configuration profile
+	statusCheckUpgrade = 0x2000000, // The device is checking for new firmware versions
+	statusReset = 0x4000000, // The device is resetting all parameters to default
 	stausIPv6 = 0x8000000, // Reserved
 	statusTestLock = 0x10000000, // Reserved
-	statusReboot = 0x20000000, // rebooting
+	statusReboot = 0x20000000, // The device is rebooting
+	statusSendTest = 0x40000000, // The device is testing the server for file uploading
 }
 
 export const enum ApiResultCode {
-	retLivingAuthErr = 30, // Live stream status: the authentication is error
-	retLivingNotset = 29, // Live stream address is not set
+	retSendWaiting = 31, // Reserved
+	retLivingAuthErr = 30, // Live stream status: authentication error
+	retLivingNotset = 29, // Live stream address not set
 	retLivingDNS = 28, // Live stream status: Resolving DNS
-	retInit = 27, // Initial status
-	retLivingAuthing = 25, // Live stream status: the authorization is in progress
-	retLivingWaiting = 24, // Live stream status: the device is waiting for connection to the stream server
-	retLivingConnecting = 23, // Live stream status: the device is connecting to the stream server
-	retLivingConnected = 22, // Live stream status: the stream server has connected
+	retInit = 27, // Initialization
+	retLivingAuthing = 25, // Live stream status: authorizing
+	retLivingWaiting = 24, // Live stream status: waiting for connection
+	retLivingConnecting = 23, // Live stream status: connecting to the streaming destination
+	retLivingConnected = 22, // Live stream status: stream server connected
 	retPushReboot = 21,
 	retAudioSignalChange = 20,
 	retBlueWrite = 19,
@@ -186,15 +386,40 @@ export const enum ApiResultCode {
 	errEvent = -22,
 	errCodec = -23,
 	errBlue = -24,
-	errNoUser = -25, // This user does not exist
-	errSameName = -27, // The name already exists
-	errString = -28, // Input characters are not valid
-	errChannelsLimited = -29, // Stream simultaneously to 2 servers at most.
-	err8MLimited = -30, // When the bitrate is 8 Mbps, the encoder can stream to 1 server only.
-	errFacebookLimited = -31, // As is required by Facebook's Terms of Service, the device can not stream simultaneously to Facebook and other online streaming services.
-	errCodecLimited = -32, // Live stream is not allowed when HEVC encoder is used.
-	err4GLimited = -33, // The maximum size of a single saved recording file should be no more than 4G
-	errMWFUnsupported = -34, // The update package does not match current model or hardware version of the product
+	errNoUser = -25, // User not exist
+	errNoPermissin = -26,
+	errSameName = -27, // Name already in use
+	errString = -28, // Invalid input characters
+	errChannelsLimited = -29, // Streaming 6 sessions simultaneously at most.
+	err8MLimited = -30, // Reserved
+	errFacebookLimited = -31, // Reserved
+	errCodecLimited = -32, // Reserved
+	err4GLimited = -33, // Reserved
+	errMWFUnsupported = -34, // Update package does not match current model or hardware version
+	errNoSignal = -35, // No signal
+	errSDCard = -36,
+	errXinYueServer = -37, // Reserved
+	errAliYunOSS = -38, // Reserved
+	errSDNoSpace = -39, // Reserved
+	errSDNoPermission = -40, // Reserved
+	errRTSPLimited = -41, // Only one RTSP session is supported at a time
+	errRTSP8MLimited = -42, // Reserved
+	errBandwidthLimited = -43, // Reserved
+	errPortLimited = -44, // Stream port occupied
+	errNDILimited = -45, // Streaming one NDI|HX session is supported
+	errSRTLimited = -46, // Streaming one SRT Listener session is supported
+	errNDISettings = -47, // The substream can be up to 640x480@60 for a NDI|HX session
+	errSubStreamSettings = -48, // The substream can be up to 1280x720@30 for a non-NDI|HX session
+	errHLSLimited = -49, // Streaming one HLS session is supported
+	errProtocolLimited = -50, // Allow 1 simultaneous session over the same streaming protocol
+	errInit = -51, // Failed to initialize channels for live streaming
+	errDeinterlaceSettings = -52, // Deinterlace settings error
+	errTVULimitted = -53, // Streaming one TVU ISSP task is supported
+	errProtocolOneChannel = -54, // Unified error codes including errRTSPLimited/errNDILimited/errSRTLimited/errHLSLimited/errTVULimitted
+	errUHDSettings = -55, // The frame rate of the main stream should be no greater than 30 FPS when the encode resolution is greater than 2048x1080.
+	errInputSignal = -56, // The frame rate of the main stream should be no greater than 30 FPS when the input resolution is greater than 2048x1080.
+	errScheduler = -57, // Reserved
+	errMountPoint = -58, // Error NAS mount point
 }
 
 export interface Duration {

@@ -1,6 +1,15 @@
-import { DeviceStatus, GetSettingsResponse, GetStatusResponse, StreamServer } from './magewell.js'
+import {
+	DeviceStatus,
+	GetSettingsResponse,
+	GetStatusResponse,
+	MagewellModel,
+	MagewellProduct,
+	StreamServer,
+} from './magewell.js'
 
 export class MagewellState {
+	productType?: MagewellProduct
+	modelType?: MagewellModel | string
 	status?: GetStatusResponse
 	settings?: GetSettingsResponse
 

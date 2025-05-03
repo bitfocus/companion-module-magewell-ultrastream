@@ -1,9 +1,19 @@
 import { CompanionVariableDefinition, InstanceBase } from '@companion-module/base'
 import { MagewellState } from './magewellstate.js'
 import { MagewellConfig } from './config.js'
-import { DeviceStatus, Duration } from './magewell.js'
+import {
+	DeviceStatus,
+	Duration,
+	MagewellProduct,
+	UltraEncodeGetStatusResponse,
+	UltraEncodeRtmpLiveStatus,
+	UltraEncodeSrtListenerLiveStatus,
+	UltraStreamGetStatusResponse,
+} from './magewell.js'
 
 export enum VariableId {
+	ProductType = 'product_type',
+	ModelType = 'model_type',
 	RecordStatus = 'record_status',
 	StreamStatus = 'stream_status',
 	StreamBitrate = 'stream_bitrate',
@@ -16,6 +26,8 @@ export enum VariableId {
 export function UpdateVariableDefinitions(self: InstanceBase<MagewellConfig>, state: MagewellState): void {
 	const variables: CompanionVariableDefinition[] = []
 
+	variables.push({ variableId: VariableId.ProductType, name: 'Magewell Product Type (Ultra Stream vs Ultra Encode)' })
+	variables.push({ variableId: VariableId.ModelType, name: 'Exact Magewell model name (e.g. Ultra Stream SDI)' })
 	variables.push({ variableId: VariableId.RecordStatus, name: 'Current recording status: Recording/Record' })
 	variables.push({ variableId: VariableId.StreamStatus, name: 'Current streaming status: Streaming/Stream' })
 	variables.push({ variableId: VariableId.StreamBitrate, name: 'Streaming bitrate in Mb/s' })
@@ -32,10 +44,45 @@ export function UpdateVariableDefinitions(self: InstanceBase<MagewellConfig>, st
 export function UpdateVariables(self: InstanceBase<MagewellConfig>, state: MagewellState): void {
 	if (!state.status) return
 
-	const streamDuration = formatDurationMilliseconds(state.status['live-status']['run-ms'])
-	const recordDuration = formatDurationMilliseconds(state.status['rec-status']['run-ms'])
+	let streamRunMs = 0
+	let recordRunMs = 0
+	let mainBps = 0
+	if (state.productType == MagewellProduct.UltraEncode) {
+		const status = state.status as UltraEncodeGetStatusResponse
+		const liveStatus = status['live-status']?.live?.length > 0 ? status['live-status'].live[0] : undefined
+		if (liveStatus) {
+			streamRunMs = liveStatus['run-ms']
+
+			if ((<UltraEncodeRtmpLiveStatus>liveStatus)['inst-bps'] !== undefined) {
+				mainBps = (<UltraEncodeRtmpLiveStatus>liveStatus)['inst-bps']
+			} else if ((<UltraEncodeSrtListenerLiveStatus>liveStatus)['clients'] !== undefined) {
+				const clients = (<UltraEncodeSrtListenerLiveStatus>liveStatus)['clients']
+				if (clients.length > 0) {
+					mainBps = clients[0]['inst-bps']
+				} else {
+					mainBps = 0
+				}
+			} else {
+				mainBps = 0
+			}
+		}
+		const recStatus = status['rec-status']?.rec?.length > 0 ? status['rec-status'].rec[0] : undefined
+		if (recStatus) {
+			recordRunMs = recStatus['run-ms']
+		}
+	} else if (state.productType == MagewellProduct.UltraStream) {
+		const status = state.status as UltraStreamGetStatusResponse
+		streamRunMs = status['live-status']['run-ms']
+		recordRunMs = status['rec-status']['run-ms']
+		mainBps = status['live-status']['cur-bps']
+	}
+
+	const streamDuration = formatDurationMilliseconds(streamRunMs)
+	const recordDuration = formatDurationMilliseconds(recordRunMs)
 
 	self.setVariableValues({
+		[VariableId.ProductType]: state.productType ?? '',
+		[VariableId.ModelType]: state.modelType ?? '',
 		[VariableId.RecordStatus]:
 			(state.status['cur-status'] & DeviceStatus.statusRecord) == <number>DeviceStatus.statusRecord
 				? 'Recording'
@@ -44,7 +91,7 @@ export function UpdateVariables(self: InstanceBase<MagewellConfig>, state: Magew
 			(state.status['cur-status'] & DeviceStatus.statusLiving) == <number>DeviceStatus.statusLiving
 				? 'Streaming'
 				: 'Stream',
-		[VariableId.StreamBitrate]: (state.status['live-status']['cur-bps'] / 125000).toFixed(2),
+		[VariableId.StreamBitrate]: (mainBps / 125000).toFixed(2),
 		[VariableId.StreamDurationHM]: streamDuration[0],
 		[VariableId.StreamDurationHMS]: streamDuration[1],
 		[VariableId.RecordDurationHM]: recordDuration[0],

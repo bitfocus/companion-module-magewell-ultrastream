@@ -74,6 +74,8 @@ export class ModuleInstance extends InstanceBase<MagewellConfig> {
 
 	async initMagewell(): Promise<void> {
 		const status = await this.client.initialize()
+		this.state.productType = this.client.getProductType()
+		this.state.modelType = this.client.getModelType()
 		this.state.status = status
 
 		if (!this.updater) {
