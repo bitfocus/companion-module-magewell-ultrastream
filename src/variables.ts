@@ -1,63 +1,55 @@
-import InstanceSkel = require("../../../instance_skel")
-import { CompanionVariable } from "../../../instance_skel_types"
-import { MagewellConfig } from "./config"
-import { DeviceStatus, Duration } from "./magewell"
-import { MagewellState } from "./magewellstate"
+import { CompanionVariableDefinition, InstanceBase } from '@companion-module/base'
+import { MagewellState } from './magewellstate.js'
+import { MagewellConfig } from './config.js'
+import { DeviceStatus, Duration } from './magewell.js'
 
-export function UpdateVariables(instance: InstanceSkel<MagewellConfig>, state: MagewellState): void {
-  if (!state.status) return;
-  instance.setVariable(`record_status`, (state.status["cur-status"] & DeviceStatus.statusRecord) == DeviceStatus.statusRecord ? 'Recording' : 'Record');
-  instance.setVariable(`stream_status`, (state.status["cur-status"] & DeviceStatus.statusLiving) == DeviceStatus.statusLiving ? 'Streaming' : 'Stream');
-  instance.setVariable(`stream_bitrate`, (state.status["live-status"]["cur-bps"] / 125000).toFixed(2));
-  const streamDuration = formatDurationMilliseconds(state.status["live-status"]["run-ms"]);
-  instance.setVariable(`stream_duration_hm`, streamDuration[0]);
-  instance.setVariable(`stream_duration_hms`, streamDuration[1]);
-
-  const recordDuration = formatDurationMilliseconds(state.status["rec-status"]["run-ms"]);
-  instance.setVariable(`record_duration_hm`, recordDuration[0]);
-  instance.setVariable(`record_duration_hms`, recordDuration[1]);
+export enum VariableId {
+	RecordStatus = 'record_status',
+	StreamStatus = 'stream_status',
+	StreamBitrate = 'stream_bitrate',
+	StreamDurationHM = 'stream_duration_hm',
+	StreamDurationHMS = 'stream_duration_hms',
+	RecordDurationHM = 'record_duration_hm',
+	RecordDurationHMS = 'record_duration_hms',
 }
 
-export function InitVariables(instance: InstanceSkel<MagewellConfig>, state: MagewellState): void {
-  const variables: CompanionVariable[] = []
+export function UpdateVariableDefinitions(self: InstanceBase<MagewellConfig>, state: MagewellState): void {
+	const variables: CompanionVariableDefinition[] = []
 
-  variables.push({
-    name: 'record_status',
-    label: 'Current recording status: Recording/Record'
-  });
+	variables.push({ variableId: VariableId.RecordStatus, name: 'Current recording status: Recording/Record' })
+	variables.push({ variableId: VariableId.StreamStatus, name: 'Current streaming status: Streaming/Stream' })
+	variables.push({ variableId: VariableId.StreamBitrate, name: 'Streaming bitrate in Mb/s' })
+	variables.push({ variableId: VariableId.StreamDurationHM, name: 'Streaming duration (hh:mm)' })
+	variables.push({ variableId: VariableId.StreamDurationHMS, name: 'Streaming duration (hh:mm:ss)' })
+	variables.push({ variableId: VariableId.RecordDurationHM, name: 'Recording duration (hh:mm)' })
+	variables.push({ variableId: VariableId.RecordDurationHMS, name: 'Recording duration (hh:mm:ss)' })
 
+	self.setVariableDefinitions(variables)
 
-  variables.push({
-    name: 'stream_status',
-    label: 'Current streaming status: Streaming/Stream'
-  });
+	UpdateVariables(self, state)
+}
 
+export function UpdateVariables(self: InstanceBase<MagewellConfig>, state: MagewellState): void {
+	if (!state.status) return
 
-  variables.push({
-    label: 'Streaming bitrate in Mb/s',
-    name: 'stream_bitrate',
-  });
-  variables.push({
-    label: 'Streaming duration (hh:mm)',
-    name: 'stream_duration_hm',
-  });
-  variables.push({
-    label: 'Streaming duration (hh:mm:ss)',
-    name: 'stream_duration_hms',
-  });
+	const streamDuration = formatDurationMilliseconds(state.status['live-status']['run-ms'])
+	const recordDuration = formatDurationMilliseconds(state.status['rec-status']['run-ms'])
 
-  variables.push({
-    label: 'Recording duration (hh:mm)',
-    name: 'record_duration_hm',
-  });
-  variables.push({
-    label: 'Recording duration (hh:mm:ss)',
-    name: 'record_duration_hms',
-  });
-
-  UpdateVariables(instance, state);
-
-  instance.setVariableDefinitions(variables)
+	self.setVariableValues({
+		[VariableId.RecordStatus]:
+			(state.status['cur-status'] & DeviceStatus.statusRecord) == <number>DeviceStatus.statusRecord
+				? 'Recording'
+				: 'Record',
+		[VariableId.StreamStatus]:
+			(state.status['cur-status'] & DeviceStatus.statusLiving) == <number>DeviceStatus.statusLiving
+				? 'Streaming'
+				: 'Stream',
+		[VariableId.StreamBitrate]: (state.status['live-status']['cur-bps'] / 125000).toFixed(2),
+		[VariableId.StreamDurationHM]: streamDuration[0],
+		[VariableId.StreamDurationHMS]: streamDuration[1],
+		[VariableId.RecordDurationHM]: recordDuration[0],
+		[VariableId.RecordDurationHMS]: recordDuration[1],
+	})
 }
 
 function formatDuration(durationObj: Duration | undefined): [string, string] {
@@ -86,10 +78,10 @@ function formatDurationMilliseconds(totalMilliseconds: number | undefined): [str
 		duration = {
 			hours: 0,
 			minutes: 0,
-			seconds: 0
+			seconds: 0,
 		}
 
-    totalMilliseconds = Math.floor(totalMilliseconds / 1000);
+		totalMilliseconds = Math.floor(totalMilliseconds / 1000)
 		duration.seconds = totalMilliseconds % 60
 		totalMilliseconds = Math.floor(totalMilliseconds / 60)
 		duration.minutes = totalMilliseconds % 60

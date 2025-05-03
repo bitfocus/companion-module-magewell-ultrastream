@@ -1,56 +1,77 @@
-import { CompanionPreset } from "../../../instance_skel_types";
-import InstanceSkel = require("../../../instance_skel");
-import { MagewellConfig } from "./config";
-import { FeedbackId } from "./feedbacks";
-import { ActionId } from "./actions";
+import { InstanceBase, combineRgb } from '@companion-module/base'
+import { MagewellConfig } from './config.js'
+import { FeedbackId } from './feedbacks.js'
+import { ActionId, ActionOperation } from './actions.js'
 
-export function GetPresets(instance: InstanceSkel<MagewellConfig>): CompanionPreset[] {
-  return [{
-    category: 'Stream',
-    label: 'Start/Stop stream',
-    bank: {
-      style: 'text',
-      text: 'LIVE',
-      size: 'auto',
-      color: instance.rgb(0, 0, 0),
-      bgcolor: instance.rgb(209, 209, 0)
-    },
-    feedbacks: [
-      {
-        type: FeedbackId.Stream,
-        options: {
-        }
-      }
-    ],
-    actions: [{
-      action: ActionId.Stream,
-      options: {
-        action: 2 // toggle
-      }
-    }]
-  }, 
-  {
-    category: 'Record',
-    label: 'Start/Stop recording',
-    bank: {
-      style: 'text',
-      text: 'REC',
-      size: 'auto',
-      color: instance.rgb(0, 0, 0),
-      bgcolor: instance.rgb(209, 209, 0)
-    },
-    feedbacks: [
-      {
-        type: FeedbackId.Record,
-        options: {
-        }
-      }
-    ],
-    actions: [{
-      action: ActionId.Record,
-      options: {
-        action: 2 // toggle
-      }
-    }]
-  }];
+export function UpdatePresetDefinitions(self: InstanceBase<MagewellConfig>): void {
+	self.setPresetDefinitions({
+		preset_stream: {
+			type: 'button',
+			category: 'Stream',
+			name: 'Start/Stop stream',
+			style: {
+				text: 'LIVE',
+				size: 'auto',
+				color: combineRgb(0, 0, 0),
+				bgcolor: combineRgb(209, 209, 0),
+			},
+			feedbacks: [
+				{
+					feedbackId: FeedbackId.Stream,
+					options: {},
+					style: {
+						bgcolor: combineRgb(222, 0, 0),
+						color: combineRgb(255, 255, 255),
+					},
+				},
+			],
+			steps: [
+				{
+					down: [
+						{
+							actionId: ActionId.Stream,
+							options: {
+								action: ActionOperation.Toggle,
+							},
+						},
+					],
+					up: [],
+				},
+			],
+		},
+		preset_record: {
+			type: 'button',
+			category: 'Record',
+			name: 'Start/Stop recording',
+			style: {
+				text: 'REC',
+				size: 'auto',
+				color: combineRgb(0, 0, 0),
+				bgcolor: combineRgb(209, 209, 0),
+			},
+			feedbacks: [
+				{
+					feedbackId: FeedbackId.Record,
+					options: {},
+					style: {
+						bgcolor: combineRgb(222, 0, 0),
+						color: combineRgb(255, 255, 255),
+					},
+				},
+			],
+			steps: [
+				{
+					down: [
+						{
+							actionId: ActionId.Record,
+							options: {
+								action: ActionOperation.Toggle,
+							},
+						},
+					],
+					up: [],
+				},
+			],
+		},
+	})
 }

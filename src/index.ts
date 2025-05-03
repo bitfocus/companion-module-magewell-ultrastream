@@ -1,110 +1,146 @@
-import InstanceSkel = require('../../../instance_skel')
-import { MagewellConfig, GetConfigFields } from './config';
-import { CompanionSystem, CompanionInputField, CompanionActionEvent } from '../../../instance_skel_types';
-import { HandleAction, GetActions } from './actions';
-import { MagewellClient } from './client';
-import { FeedbackId, GetFeedbacks } from './feedbacks';
-import { MagewellState } from './magewellstate';
-import { GetPresets } from './presets';
-import { InitVariables, UpdateVariables } from './variables';
+import { InstanceBase, runEntrypoint, InstanceStatus, SomeCompanionConfigField } from '@companion-module/base'
+import { GetConfigFields, type MagewellConfig } from './config.js'
+import { UpdateVariableDefinitions, UpdateVariables } from './variables.js'
+import { UpgradeScripts } from './upgrades.js'
+import { UpdateActions } from './actions.js'
+import { FeedbackId, UpdateFeedbacks } from './feedbacks.js'
+import { MagewellClient } from './client.js'
+import { MagewellState } from './magewellstate.js'
+import { UpdatePresetDefinitions } from './presets.js'
 
-class MagewellInstance extends InstanceSkel<MagewellConfig> {
-  private client: MagewellClient;
-  private updater?: NodeJS.Timeout;
-  private state: MagewellState;
+export class ModuleInstance extends InstanceBase<MagewellConfig> {
+	config!: MagewellConfig // Setup in init()
+	client!: MagewellClient
+	updater?: NodeJS.Timeout
+	state: MagewellState = {}
 
-  constructor(system: CompanionSystem, id: string, config: MagewellConfig) {
-    super(system, id, config);
+	constructor(internal: unknown) {
+		super(internal)
 
-    this.client = new MagewellClient(this);
-    this.state = new MagewellState();
-  }
+		this.client = new MagewellClient(this, () => this.config)
+		this.state = new MagewellState()
+	}
 
-  init(): void {
-    this.log('debug', 'Initializing Magewell');
-    this.status(this.STATUS_UNKNOWN);
+	async init(config: MagewellConfig): Promise<void> {
+		this.config = config
 
-    this.initCompanion();
-    this.initMagewell();
-  }
+		this.updateStatus(InstanceStatus.Ok)
 
-  destroy(): void {
-    if (this.updater) {
-      clearInterval(this.updater);
-      delete (this.updater);
-    }
+		this.updateActions() // export actions
+		this.updateFeedbacks() // export feedbacks
+		this.updateVariableDefinitions() // export variable definitions
+		this.updatePresetDefinitions() // export preset definitions
 
-    this.client.disconnect().then(() => {
-      this.status(this.STATUS_UNKNOWN, 'Disconnected');
-    });
-  }
+		this.initMagewell()
+			.then(() => {
+				/* ignore */
+			})
+			.catch(() => {
+				this.updateStatus(InstanceStatus.ConnectionFailure, 'Failed to connect to device')
+			})
+	}
 
-  updateConfig(_config: MagewellConfig): void {
-    this.config = _config;
-    this.client.disconnect().then(() => {
-      this.initMagewell();
-    });
-  }
+	// When module gets deleted
+	async destroy(): Promise<void> {
+		this.log('debug', 'destroy')
+	}
 
-  config_fields(): CompanionInputField[] {
-    return GetConfigFields(this);
-  }
+	async configUpdated(config: MagewellConfig): Promise<void> {
+		this.config = config
 
-  initMagewell() {
-    return this.client.initialize().then(s => {
-      this.state.status = s;
-      if (!this.updater) {
-        this.updater = setInterval(() => this.updateStatus(), 1000);
-      }
-    })
-  }
+		try {
+			await this.client.disconnect()
+		} catch {
+			/* ignore */
+		}
 
-  updateStatus() {
-    this.client.getStatus().then(s => {
-      const oldStatus = this.state.status;
-      this.state.status = s;
+		try {
+			await this.initMagewell()
+		} catch (e) {
+			this.updateStatus(InstanceStatus.ConnectionFailure, 'Failed to connect to device')
+			this.log('error', 'Failed to connect to device: ' + e)
+		}
+	}
 
-      if (oldStatus?.["cur-status"] != s?.["cur-status"]) {
-        // Current feedbacks only handle the cur-status
-        this.checkFeedbacks();
-      }
+	getClient(): MagewellClient {
+		return this.client
+	}
 
-      UpdateVariables(this, this.state);
-    });
+	getConfig(): MagewellConfig {
+		return this.config
+	}
 
-    this.client.getSettings().then(s => {
-      const oldSettings = this.state.settings;
-      this.state.settings = s;
+	async initMagewell(): Promise<void> {
+		const status = await this.client.initialize()
+		this.state.status = status
 
-      this.updateActionsAndFeedbacks();
+		if (!this.updater) {
+			this.updater = setInterval(() => this.triggerQueryStatus(), 1000)
+		}
+	}
 
-      if (oldSettings?.['stream-server'] != s?.['stream-server']) {
-        var changed = false;
-        s?.['stream-server'].forEach(streamServer => {
-          const oldStatus = oldSettings?.['stream-server']?.find(ss => ss.id == streamServer.id);
-          changed = changed || (oldStatus?.['is-use'] != streamServer['is-use']);
-        });
-        if (changed) {
-          this.checkFeedbacks(FeedbackId.Server);
-        }
-      }
-    });
-  }
+	triggerQueryStatus(): void {
+		this.queryStatus()
+			.then(() => {
+				/* ignore */
+			})
+			.catch(() => {
+				this.updateStatus(InstanceStatus.UnknownError, 'Error querying device status')
+			})
+	}
 
-  updateActionsAndFeedbacks() {
-    this.setActions(GetActions(this.state.settings));
-    this.setFeedbackDefinitions(GetFeedbacks(this, this.state));
-  }
+	async queryStatus(): Promise<void> {
+		const status = await this.client.getStatus()
 
-  public action(action: CompanionActionEvent): void {
-    HandleAction(this, this.client, action);
-  }
+		const oldStatus = this.state.status
+		this.state.status = status
 
-  initCompanion() {
-    this.updateActionsAndFeedbacks();
-    this.setPresetDefinitions(GetPresets(this));
-    this.checkFeedbacks();
-    InitVariables(this, this.state);
-  }
+		if (oldStatus?.['cur-status'] != status?.['cur-status']) {
+			// Current feedbacks only handle the cur-status
+			this.checkFeedbacks()
+		}
+
+		UpdateVariables(this, this.state)
+
+		const settings = await this.client.getSettings()
+		const oldSettings = this.state.settings
+		this.state.settings = settings
+
+		this.updateActions()
+		this.updateFeedbacks()
+
+		if (oldSettings?.['stream-server'] != settings?.['stream-server']) {
+			let changed = false
+			settings?.['stream-server'].forEach((streamServer) => {
+				const oldStatus = oldSettings?.['stream-server']?.find((ss) => ss.id == streamServer.id)
+				changed = changed || oldStatus?.['is-use'] != streamServer['is-use']
+			})
+			if (changed) {
+				this.checkFeedbacks(FeedbackId.Server)
+			}
+		}
+	}
+
+	// Return config fields for web config
+	getConfigFields(): SomeCompanionConfigField[] {
+		return GetConfigFields()
+	}
+
+	updateActions(): void {
+		UpdateActions(this, this.state.settings)
+	}
+
+	updateFeedbacks(): void {
+		UpdateFeedbacks(this, this.state)
+	}
+
+	updateVariableDefinitions(): void {
+		UpdateVariableDefinitions(this, this.state)
+	}
+
+	updatePresetDefinitions(): void {
+		UpdatePresetDefinitions(this)
+	}
 }
-export = MagewellInstance
+
+runEntrypoint(ModuleInstance, UpgradeScripts)
