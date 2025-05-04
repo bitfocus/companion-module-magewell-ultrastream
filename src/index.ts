@@ -2,8 +2,8 @@ import { InstanceBase, runEntrypoint, InstanceStatus, SomeCompanionConfigField }
 import { GetConfigFields, type MagewellConfig } from './config.js'
 import { UpdateVariableDefinitions, UpdateVariables } from './variables.js'
 import { UpgradeScripts } from './upgrades.js'
-import { UpdateActions } from './actions.js'
-import { FeedbackId, UpdateFeedbacks } from './feedbacks.js'
+import { ActionCache, UpdateActions } from './actions.js'
+import { FeedbackCache, FeedbackId, UpdateFeedbacks } from './feedbacks.js'
 import { MagewellClient } from './client.js'
 import { MagewellState } from './magewellstate.js'
 import { UpdatePresetDefinitions } from './presets.js'
@@ -12,7 +12,9 @@ export class ModuleInstance extends InstanceBase<MagewellConfig> {
 	config!: MagewellConfig // Setup in init()
 	client!: MagewellClient
 	updater?: NodeJS.Timeout
-	state: MagewellState = {}
+	state: MagewellState = new MagewellState()
+	actionCache: ActionCache = {}
+	feedbackCache: FeedbackCache = {}
 
 	constructor(internal: unknown) {
 		super(internal)
@@ -127,11 +129,11 @@ export class ModuleInstance extends InstanceBase<MagewellConfig> {
 	}
 
 	updateActions(): void {
-		UpdateActions(this, this.state.settings)
+		UpdateActions(this, this.state, this.actionCache)
 	}
 
 	updateFeedbacks(): void {
-		UpdateFeedbacks(this, this.state)
+		UpdateFeedbacks(this, this.state, this.feedbackCache)
 	}
 
 	updateVariableDefinitions(): void {
