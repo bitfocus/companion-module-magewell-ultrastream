@@ -1,7 +1,8 @@
-import { CompanionActionEvent, DropdownChoice } from '@companion-module/base'
+import { CompanionActionDefinitions, CompanionActionEvent, DropdownChoice } from '@companion-module/base'
 import { MagewellClient } from './client.js'
 import type { ModuleInstance } from './index.js'
-import { DeviceStatus, GetSettingsResponse } from './magewell.js'
+import { DeviceStatus } from './magewell.js'
+import { MagewellState } from './magewellstate.js'
 
 export enum ActionId {
 	Stream = 'stream',
@@ -15,80 +16,98 @@ export enum ActionOperation {
 	Toggle = 2,
 }
 
-export function UpdateActions(self: ModuleInstance, settings: GetSettingsResponse | undefined): void {
-	self.setActionDefinitions({
-		[ActionId.Record]: {
-			name: 'Start/Stop recording',
-			options: [
-				{
-					type: 'dropdown',
-					id: 'action',
-					label: 'Action',
-					default: ActionOperation.StartEnable,
-					choices: [
-						{ id: ActionOperation.StartEnable, label: 'Start' },
-						{ id: ActionOperation.StopDisable, label: 'Stop' },
-						{ id: ActionOperation.Toggle, label: 'Toggle' },
-					],
-				},
-			],
-			callback: async (event) => {
-				record(self.client, event).catch((e) => self.log('error', 'Failed to execute action: ' + e))
+export interface ActionCache {
+	StreamServers?: string
+}
+
+export function UpdateActions(self: ModuleInstance, state: MagewellState, cache: ActionCache): void {
+	const serverChoices: DropdownChoice[] = state.getServers().map(
+		(s) =>
+			<DropdownChoice>{
+				id: s.id,
+				label: s.name,
 			},
-		},
-		[ActionId.Stream]: {
-			name: 'Start/Stop streaming',
-			options: [
-				{
-					type: 'dropdown',
-					id: 'action',
-					label: 'Action',
-					default: ActionOperation.StartEnable,
-					choices: [
-						{ id: ActionOperation.StartEnable, label: 'Start' },
-						{ id: ActionOperation.StopDisable, label: 'Stop' },
-						{ id: ActionOperation.Toggle, label: 'Toggle' },
-					],
-				},
-			],
-			callback: async (event) => {
-				stream(self.client, event).catch((e) => self.log('error', 'Failed to execute action: ' + e))
+	)
+
+	const serializedServerChoices = JSON.stringify(serverChoices)
+	if (cache.StreamServers === serializedServerChoices) {
+		// No need to update the action definitions if the server choices haven't changed
+		return
+	}
+
+	const actions: CompanionActionDefinitions = {}
+
+	actions[ActionId.Record] = {
+		name: 'Start/Stop recording',
+		options: [
+			{
+				type: 'dropdown',
+				id: 'action',
+				label: 'Action',
+				default: ActionOperation.StartEnable,
+				choices: [
+					{ id: ActionOperation.StartEnable, label: 'Start' },
+					{ id: ActionOperation.StopDisable, label: 'Stop' },
+					{ id: ActionOperation.Toggle, label: 'Toggle' },
+				],
 			},
+		],
+		callback: async (event) => {
+			record(self.client, event).catch((e) => self.log('error', 'Failed to execute action: ' + e))
 		},
-		[ActionId.Server]: {
-			name: 'Enable/Disable streaming server',
-			options: [
-				{
-					type: 'dropdown',
-					id: 'action',
-					label: 'Action',
-					default: ActionOperation.StartEnable,
-					choices: [
-						{ id: ActionOperation.StartEnable, label: 'Enable' },
-						{ id: ActionOperation.StopDisable, label: 'Disable' },
-						{ id: ActionOperation.Toggle, label: 'Toggle' },
-					],
-				},
-				{
-					type: 'dropdown',
-					id: 'server',
-					label: 'Server',
-					default: settings?.['stream-server'][0]?.id ?? 1,
-					choices:
-						settings?.['stream-server'].map(
-							(s) =>
-								<DropdownChoice>{
-									id: s.id,
-									label: s.name,
-								},
-						) ?? [],
-				},
-			],
-			callback: async (event) => {
-				server(self.client, event).catch((e) => self.log('error', 'Failed to execute action: ' + e))
+	}
+
+	actions[ActionId.Stream] = {
+		name: 'Start/Stop streaming',
+		options: [
+			{
+				type: 'dropdown',
+				id: 'action',
+				label: 'Action',
+				default: ActionOperation.StartEnable,
+				choices: [
+					{ id: ActionOperation.StartEnable, label: 'Start' },
+					{ id: ActionOperation.StopDisable, label: 'Stop' },
+					{ id: ActionOperation.Toggle, label: 'Toggle' },
+				],
 			},
+		],
+		callback: async (event) => {
+			stream(self.client, event).catch((e) => self.log('error', 'Failed to execute action: ' + e))
 		},
-	})
+	}
+
+	actions[ActionId.Server] = {
+		name: 'Enable/Disable streaming server',
+		options: [
+			{
+				type: 'dropdown',
+				id: 'action',
+				label: 'Action',
+				default: ActionOperation.StartEnable,
+				choices: [
+					{ id: ActionOperation.StartEnable, label: 'Enable' },
+					{ id: ActionOperation.StopDisable, label: 'Disable' },
+					{ id: ActionOperation.Toggle, label: 'Toggle' },
+				],
+			},
+			{
+				type: 'dropdown',
+				id: 'server',
+				label: 'Server',
+				default: serverChoices.length > 0 ? serverChoices[0].id : 1,
+				choices: serverChoices,
+			},
+		],
+		callback: async (event) => {
+			server(self.client, event).catch((e) => self.log('error', 'Failed to execute action: ' + e))
+		},
+	}
+
+	self.setActionDefinitions(actions)
+
+	// uptdate cache
+	cache.StreamServers = serializedServerChoices
 }
 
 async function record(client: MagewellClient, action: CompanionActionEvent) {
