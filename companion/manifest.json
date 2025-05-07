@@ -1,7 +1,7 @@
 {
 	"id": "magewell-ultrastream",
 	"name": "magewell-ultrastream",
-	"shortname": "magewell",
+	"shortname": "ultrastream",
 	"version": "0.0.6",
 	"description": "Magewell Ultra Stream/Encode plugin for companion",
 	"license": "MIT",

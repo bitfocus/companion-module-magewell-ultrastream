@@ -1,5 +1,5 @@
-import { MagewellConfig } from './config.js'
-import axios from 'axios'
+import { DefaultTimeout, MagewellConfig } from './config.js'
+import axios, { AxiosResponse } from 'axios'
 import { createHash } from 'crypto'
 import {
 	GetStatusResponse,
@@ -29,38 +29,57 @@ export class MagewellClient {
 		params?: string,
 		retry: boolean = false,
 	): Promise<T | undefined> {
-		const url = `http://${this.getConfig().host}/usapi?method=${method}` + (params ?? '')
+		const config = this.getConfig()
+		const url = `http://${config.host}/usapi?method=${method}` + (params ?? '')
 
-		if (!this.cookie && !(await this.initialize())) return
+		if (!this.cookie) {
+			const initResult = await this.initialize()
+			if (!initResult) {
+				return
+			}
+		}
 
-		return await axios
-			.get<T>(url, {
-				headers: {
-					Cookie: this.cookie,
-				},
+		let result: AxiosResponse<T | any> | undefined = undefined
+		try {
+			result = await axios.get<T>(url, {
+				headers: { Cookie: this.cookie },
+				signal: AbortSignal.timeout(config.timeout ?? DefaultTimeout),
 			})
-			.catch((e) => {
-				this.instance.log('warn', method + ' call failed:' + e.response?.data.result)
-			})
-			.then(async (result) => {
-				if (!result) return
+		} catch (e: any) {
+			this.instance.log('warn', `${method} call failed: ${e.response?.data.result}`)
+		}
 
-				if (result.data.result != 0) {
-					this.instance.log('warn', method + ' call failed:' + result.data.result)
+		if (!result) {
+			this.instance.log('debug', `Missing result for ${method}`)
+			return
+		}
 
-					if (
-						result.data.result == <number>ApiResultCode.errNeedAuth ||
-						result.data.result == <number>ApiResultCode.errPasswd
-					) {
-						// Auth error, try to reconnect
-						if (!retry) {
-							await this.initialize(true)
-							return await this.get<T>(method, params, true)
-						}
-					}
+		if (result.data.result != 0) {
+			if (
+				result.data.result == <number>ApiResultCode.errNeedAuth ||
+				result.data.result == <number>ApiResultCode.errPasswd
+			) {
+				// Auth error, try to reconnect
+				if (!retry) {
+					this.instance.log(
+						'warn',
+						`${method} call failed with authentication error: ${result.data.result} - performing re init`,
+					)
+
+					await this.initialize(true)
+					return await this.get<T>(method, params, true)
+				} else {
+					this.instance.log(
+						'warn',
+						`${method} call failed consecutively with authentication error: ${result.data.result}`,
+					)
 				}
-				return result.data
-			})
+			} else {
+				this.instance.log('warn', `${method} call failed: ${result.data.result}`)
+			}
+		}
+
+		return result.data
 	}
 
 	getProductType(): MagewellProduct | undefined {
@@ -71,8 +90,12 @@ export class MagewellClient {
 		return this.modelType
 	}
 
+	isConfigValid(config: MagewellConfig): boolean {
+		return !(!config.username || !config.password || !config.host)
+	}
+
 	async initialize(force: boolean = false): Promise<GetStatusResponse | undefined> {
-		if (this.initializing) return undefined
+		if (this.initializing) return
 		this.initializing = true
 
 		const config = this.getConfig()
@@ -80,26 +103,27 @@ export class MagewellClient {
 		try {
 			if (this.cookie && !force) return
 
-			if (!config.username || !config.password || !config.host) {
+			if (!this.isConfigValid(config)) {
 				this.instance.log('warn', 'Configuration not complete, missing username/password/host')
 				this.instance.updateStatus(InstanceStatus.BadConfig, 'Configuration incomplete')
-				return undefined
+				return
 			}
 
 			this.instance.updateStatus(InstanceStatus.Connecting, 'Connecting')
 
-			const passwordHash = createHash('md5').update(config.password).digest('hex')
-			try {
-				const result = await axios.get(
-					`http://${config.host}/usapi?method=login&id=${config.username}&pass=${passwordHash}`,
-				)
+			const passwordHash = createHash('md5')
+				.update(<string>config.password)
+				.digest('hex')
 
-				if (!result) return undefined
+			try {
+				const url = `http://${config.host}/usapi?method=login&id=${config.username}&pass=${passwordHash}`
+				const result = await axios.get(url, { signal: AbortSignal.timeout(config.timeout ?? DefaultTimeout) })
+				if (!result) return
 
 				if (result.data.result != 0) {
 					this.instance.log('warn', 'Authentication failed.')
 					this.instance.updateStatus(InstanceStatus.ConnectionFailure, 'Authentication failed')
-					return undefined
+					return
 				}
 
 				// store login cookie
@@ -122,7 +146,7 @@ export class MagewellClient {
 				if (status?.result != 0) {
 					this.cookie = undefined
 					this.instance.updateStatus(InstanceStatus.UnknownError, 'Status call failed')
-					return undefined
+					return
 				}
 
 				this.instance.log('info', `Connected to Magewell ${this.modelType ?? 'Ultra Stream'}`)
@@ -132,8 +156,7 @@ export class MagewellClient {
 				this.instance.log('warn', 'Authentication failed.')
 				this.instance.log('debug', 'Exception: ' + e)
 				this.instance.updateStatus(InstanceStatus.ConnectionFailure, 'Authentication failed')
-
-				return undefined
+				return
 			}
 		} finally {
 			this.initializing = false

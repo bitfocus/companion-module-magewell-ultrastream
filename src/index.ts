@@ -12,6 +12,7 @@ export class ModuleInstance extends InstanceBase<MagewellConfig> {
 	config!: MagewellConfig // Setup in init()
 	client!: MagewellClient
 	updater?: NodeJS.Timeout
+	intervalQueryRunning: boolean = false
 	state: MagewellState = new MagewellState()
 	actionCache: ActionCache = {}
 	feedbackCache: FeedbackCache = {}
@@ -26,7 +27,7 @@ export class ModuleInstance extends InstanceBase<MagewellConfig> {
 	async init(config: MagewellConfig): Promise<void> {
 		this.config = config
 
-		this.updateStatus(InstanceStatus.Ok)
+		this.log('info', 'Initializing module')
 
 		this.updateActions() // export actions
 		this.updateFeedbacks() // export feedbacks
@@ -45,6 +46,20 @@ export class ModuleInstance extends InstanceBase<MagewellConfig> {
 	// When module gets deleted
 	async destroy(): Promise<void> {
 		this.log('debug', 'destroy')
+
+		if (this.updater) {
+			clearInterval(this.updater)
+			this.updater = undefined
+		}
+
+		this.client
+			.disconnect()
+			.then(() => {
+				/* ignore */
+			})
+			.catch(() => {
+				/* ignore */
+			})
 	}
 
 	async configUpdated(config: MagewellConfig): Promise<void> {
@@ -78,7 +93,10 @@ export class ModuleInstance extends InstanceBase<MagewellConfig> {
 		this.state.modelType = this.client.getModelType()
 		this.state.status = status
 
-		if (!this.updater) {
+		if (!this.updater && this.client.isConfigValid(this.config)) {
+			// Only start interval, when not already started and config is valid.
+			// If config is invalid, this code will run again when config is updated.
+			this.intervalQueryRunning = false
 			this.updater = setInterval(() => this.triggerQueryStatus(), 1000)
 		}
 	}
@@ -94,34 +112,46 @@ export class ModuleInstance extends InstanceBase<MagewellConfig> {
 	}
 
 	async queryStatus(): Promise<void> {
-		const status = await this.client.getStatus()
+		if (this.intervalQueryRunning) return
 
-		const oldStatus = this.state.status
-		this.state.status = status
+		try {
+			this.intervalQueryRunning = true
 
-		if (oldStatus?.['cur-status'] != status?.['cur-status']) {
-			// Current feedbacks only handle the cur-status
-			this.checkFeedbacks()
-		}
+			const status = await this.client.getStatus()
 
-		UpdateVariables(this, this.state)
+			const oldStatus = this.state.status
+			this.state.status = status
 
-		const settings = await this.client.getSettings()
-		const oldSettings = this.state.settings
-		this.state.settings = settings
-
-		this.updateActions()
-		this.updateFeedbacks()
-
-		if (oldSettings?.['stream-server'] != settings?.['stream-server']) {
-			let changed = false
-			settings?.['stream-server'].forEach((streamServer) => {
-				const oldStatus = oldSettings?.['stream-server']?.find((ss) => ss.id == streamServer.id)
-				changed = changed || oldStatus?.['is-use'] != streamServer['is-use']
-			})
-			if (changed) {
-				this.checkFeedbacks(FeedbackId.Server)
+			if (oldStatus?.['cur-status'] != status?.['cur-status']) {
+				// Current feedbacks only handle the cur-status
+				this.checkFeedbacks()
 			}
+
+			UpdateVariables(this, this.state)
+
+			// Don't query settings if the status is not available
+			if (!status) return
+
+			const settings = await this.client.getSettings()
+			const oldSettings = this.state.settings
+			this.state.settings = settings
+
+			this.updateActions()
+			this.updateFeedbacks()
+			this.updatePresetDefinitions()
+
+			if (oldSettings?.['stream-server'] != settings?.['stream-server']) {
+				let changed = false
+				settings?.['stream-server'].forEach((streamServer) => {
+					const oldStatus = oldSettings?.['stream-server']?.find((ss) => ss.id == streamServer.id)
+					changed = changed || oldStatus?.['is-use'] != streamServer['is-use']
+				})
+				if (changed) {
+					this.checkFeedbacks(FeedbackId.Server)
+				}
+			}
+		} finally {
+			this.intervalQueryRunning = false
 		}
 	}
 

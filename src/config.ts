@@ -4,7 +4,10 @@ export interface MagewellConfig {
 	host?: string
 	username?: string
 	password?: string
+	timeout?: number
 }
+
+export const DefaultTimeout: number = 5000
 
 export function GetConfigFields(): SomeCompanionConfigField[] {
 	return [
@@ -28,6 +31,15 @@ export function GetConfigFields(): SomeCompanionConfigField[] {
 			label: 'Password',
 			width: 12,
 			default: 'Admin',
+		},
+		{
+			type: 'number',
+			id: 'timeout',
+			label: 'Request timeout (ms)',
+			default: DefaultTimeout,
+			min: 200,
+			max: 30000,
+			width: 6,
 		},
 	]
 }
