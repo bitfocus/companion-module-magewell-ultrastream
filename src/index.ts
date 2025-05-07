@@ -6,7 +6,7 @@ import { ActionCache, UpdateActions } from './actions.js'
 import { FeedbackCache, FeedbackId, UpdateFeedbacks } from './feedbacks.js'
 import { MagewellClient } from './client.js'
 import { MagewellState } from './magewellstate.js'
-import { UpdatePresetDefinitions } from './presets.js'
+import { PresetCache, UpdatePresetDefinitions } from './presets.js'
 
 export class ModuleInstance extends InstanceBase<MagewellConfig> {
 	config!: MagewellConfig // Setup in init()
@@ -16,6 +16,7 @@ export class ModuleInstance extends InstanceBase<MagewellConfig> {
 	state: MagewellState = new MagewellState()
 	actionCache: ActionCache = {}
 	feedbackCache: FeedbackCache = {}
+	presetCache: PresetCache = {}
 
 	constructor(internal: unknown) {
 		super(internal)
@@ -173,7 +174,7 @@ export class ModuleInstance extends InstanceBase<MagewellConfig> {
 	}
 
 	updatePresetDefinitions(): void {
-		UpdatePresetDefinitions(this)
+		UpdatePresetDefinitions(this, this.state, this.presetCache)
 	}
 }
 
