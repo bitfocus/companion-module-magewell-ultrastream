@@ -2,7 +2,7 @@
 	"id": "magewell-ultrastream",
 	"name": "magewell-ultrastream",
 	"shortname": "ultrastream",
-	"version": "0.9.0",
+	"version": "1.0.0",
 	"description": "Magewell Ultra Stream/Encode plugin for companion",
 	"license": "MIT",
 	"repository": "git+https://github.com/bitfocus/companion-module-magewell-ultrastream.git",
