@@ -13,8 +13,19 @@ export enum MagewellProduct {
 	UltraEncode = 'Ultra Encode',
 }
 
-export interface GetInfoResponse extends BaseResponse {
+export interface NameValueElement {
+	name: string
+	value: number
+}
+
+export type GetInfoResponse = BaseGetInfoResponse | UltraEncodeGetInfoResponse
+
+export interface BaseGetInfoResponse extends BaseResponse {
 	product: Product
+}
+
+export interface UltraEncodeGetInfoResponse extends BaseGetInfoResponse {
+	'input-source': InputSourceInfo
 }
 
 export interface Product {
@@ -29,6 +40,17 @@ export interface Product {
 	'manu-name': string
 	features: number
 	'max-lock-count': number
+}
+
+export interface InputSourceInfo {
+	sources: NameValueElement[]
+	'video-mixer': VideoMixerInfo
+}
+
+export interface VideoMixerInfo {
+	types: NameValueElement[]
+	pip: NameValueElement[]
+	sbs: NameValueElement[]
 }
 
 export type GetSettingsResponse = UltraStreamGetSettingsResponse | UltraEncodeGetSettingsResponse
@@ -66,7 +88,7 @@ export interface UltraEncodeGetSettingsResponse extends BaseResponse {
 	'enable-ndi-hx3': number // NDI|HX3 enable status
 	softap: any // AP settings
 	'date-time': any // value of date and time
-	'input-source': any // input source value
+	'input-source': InputSourceSetting // input source value
 	'video-color': any // video information
 	volume: any // audio information
 	'enable-deinterlace': number // deinterlace enable status
@@ -89,6 +111,16 @@ export interface UltraEncodeGetSettingsResponse extends BaseResponse {
 	rec: any // record settings
 	living: any // live settings
 	'lcd-control': any // LCD screen settings
+}
+
+export interface InputSourceSetting {
+	source: number
+	mixer: {
+		'input-device': number
+		'is-hdmi-top': number
+		type: number
+		location: number
+	}
 }
 
 export interface StreamServer {

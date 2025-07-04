@@ -3,7 +3,7 @@ import { GetConfigFields, type MagewellConfig } from './config.js'
 import { UpdateVariableDefinitions, UpdateVariables } from './variables.js'
 import { UpgradeScripts } from './upgrades.js'
 import { ActionCache, UpdateActions } from './actions.js'
-import { FeedbackCache, FeedbackId, UpdateFeedbacks } from './feedbacks.js'
+import { FeedbackCache, UpdateFeedbacks } from './feedbacks.js'
 import { MagewellClient } from './client.js'
 import { MagewellState } from './magewellstate.js'
 import { PresetCache, UpdatePresetDefinitions } from './presets.js'
@@ -13,6 +13,7 @@ export class ModuleInstance extends InstanceBase<MagewellConfig> {
 	client!: MagewellClient
 	updater?: NodeJS.Timeout
 	intervalQueryRunning: boolean = false
+	intervalQueryFailures: number = 0
 	state: MagewellState = new MagewellState()
 	actionCache: ActionCache = {}
 	feedbackCache: FeedbackCache = {}
@@ -92,7 +93,14 @@ export class ModuleInstance extends InstanceBase<MagewellConfig> {
 		const status = await this.client.initialize()
 		this.state.productType = this.client.getProductType()
 		this.state.modelType = this.client.getModelType()
+		this.state.inputSources = this.client.getInputSources()
+		this.state.mixerInfo = this.client.getMixerInfo()
 		this.state.status = status
+
+		this.updateActions() // export actions
+		this.updateFeedbacks() // export feedbacks
+		this.updateVariableDefinitions() // export variable definitions
+		this.updatePresetDefinitions() // export preset definitions
 
 		if (!this.updater && this.client.isConfigValid(this.config)) {
 			// Only start interval, when not already started and config is valid.
@@ -107,13 +115,15 @@ export class ModuleInstance extends InstanceBase<MagewellConfig> {
 			.then(() => {
 				/* ignore */
 			})
-			.catch(() => {
-				this.updateStatus(InstanceStatus.UnknownError, 'Error querying device status')
+			.catch((reason) => {
+				this.updateStatus(InstanceStatus.UnknownError, `Error querying device status: ${reason}`)
 			})
 	}
 
 	async queryStatus(): Promise<void> {
 		if (this.intervalQueryRunning) return
+
+		let checkFeedbacks = false
 
 		try {
 			this.intervalQueryRunning = true
@@ -124,34 +134,33 @@ export class ModuleInstance extends InstanceBase<MagewellConfig> {
 			this.state.status = status
 
 			if (oldStatus?.['cur-status'] != status?.['cur-status']) {
-				// Current feedbacks only handle the cur-status
-				this.checkFeedbacks(FeedbackId.Stream, FeedbackId.Record)
+				checkFeedbacks = true
 			}
 
 			UpdateVariables(this, this.state)
 
 			// Don't query settings if the status is not available
-			if (!status) return
+			if (status) {
+				const settings = await this.client.getSettings()
+				const oldSettings = this.state.settings
+				this.state.settings = settings
 
-			this.checkFeedbacks(FeedbackId.Vumeters)
+				this.updateActions()
+				this.updateFeedbacks()
+				this.updatePresetDefinitions()
 
-			const settings = await this.client.getSettings()
-			const oldSettings = this.state.settings
-			this.state.settings = settings
-
-			this.updateActions()
-			this.updateFeedbacks()
-			this.updatePresetDefinitions()
-
-			if (oldSettings?.['stream-server'] != settings?.['stream-server']) {
-				let changed = false
-				settings?.['stream-server'].forEach((streamServer) => {
-					const oldStatus = oldSettings?.['stream-server']?.find((ss) => ss.id == streamServer.id)
-					changed = changed || oldStatus?.['is-use'] != streamServer['is-use']
-				})
-				if (changed) {
-					this.checkFeedbacks(FeedbackId.Server)
+				if (JSON.stringify(oldSettings) !== JSON.stringify(settings)) {
+					// If settings changed, update the feedbacks
+					checkFeedbacks = true
 				}
+
+				this.intervalQueryFailures = 0 // Reset failures on successful query
+			} else {
+				this.intervalQueryFailures += 1
+			}
+
+			if (checkFeedbacks) {
+				this.checkFeedbacks()
 			}
 		} finally {
 			this.intervalQueryRunning = false

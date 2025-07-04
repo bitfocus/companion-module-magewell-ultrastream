@@ -1,13 +1,17 @@
 import { CompanionActionDefinitions, CompanionActionEvent, DropdownChoice } from '@companion-module/base'
 import { MagewellClient } from './client.js'
 import type { ModuleInstance } from './index.js'
-import { DeviceStatus } from './magewell.js'
+import { DeviceStatus, UltraEncodeGetSettingsResponse } from './magewell.js'
 import { MagewellState } from './magewellstate.js'
+import { BuildInputSourceItems, BuildMixerLocationItems, BuildServerItems } from './utility.js'
 
 export enum ActionId {
 	Stream = 'stream',
 	Record = 'record',
 	Server = 'server',
+	Input = 'input',
+	Mixer = 'mixer',
+	MixerFormat = 'mixer_format',
 }
 
 export enum ActionOperation {
@@ -18,20 +22,17 @@ export enum ActionOperation {
 
 export interface ActionCache {
 	StreamServers?: string
+	InputSources?: string
 }
 
 export function UpdateActions(self: ModuleInstance, state: MagewellState, cache: ActionCache): void {
-	const serverChoices: DropdownChoice[] = state.getServers().map(
-		(s) =>
-			<DropdownChoice>{
-				id: s.id,
-				label: s.name,
-			},
-	)
+	const serverChoices: DropdownChoice[] = BuildServerItems(state)
+	const inputChoices: DropdownChoice[] = BuildInputSourceItems(state)
 
 	const serializedServerChoices = JSON.stringify(serverChoices)
-	if (cache.StreamServers === serializedServerChoices) {
-		// No need to update the action definitions if the server choices haven't changed
+	const serializedInputChoices = JSON.stringify(inputChoices)
+	if (cache.StreamServers === serializedServerChoices && cache.InputSources === serializedInputChoices) {
+		// No need to update the action definitions if the server choices and input choices haven't changed
 		return
 	}
 
@@ -104,10 +105,100 @@ export function UpdateActions(self: ModuleInstance, state: MagewellState, cache:
 		},
 	}
 
+	actions[ActionId.Input] = {
+		name: 'Select input source',
+		options: [
+			{
+				type: 'dropdown',
+				id: 'input',
+				label: 'Input Source',
+				default: inputChoices.length > 0 ? inputChoices[0].id : 1,
+				choices: inputChoices,
+			},
+		],
+		callback: async (event) => {
+			const selectedInput = +(event.options.input ?? 1)
+			await self.client.selectInputSource(selectedInput)
+		},
+	}
+
+	const mixerLocations = BuildMixerLocationItems(state)
+	actions[ActionId.Mixer] = {
+		name: 'Change mixer settings',
+		options: [
+			{
+				type: 'dropdown',
+				id: 'order',
+				label: 'Layer Order',
+				default: '0',
+				choices: [
+					{ id: '1', label: 'HDMI on top' },
+					{ id: '0', label: 'SDI on top' },
+				],
+			},
+			{
+				type: 'dropdown',
+				id: 'location',
+				label: 'Location',
+				default: mixerLocations.length > 0 ? mixerLocations[0].id : 'pip_1',
+				choices: mixerLocations,
+			},
+		],
+		callback: async (event) => {
+			const settings = (await self.client.getSettings()) as UltraEncodeGetSettingsResponse
+			if (!settings || !settings['input-source']?.mixer) {
+				self.log('error', 'Failed to get mixer settings')
+				return
+			}
+
+			const format = settings['input-source'].mixer['input-device'] ?? 1
+			const order = +(event.options.order ?? 0)
+			const location = event.options.location ?? 'pip_1'
+			const locationParts = (location + '').split('_')
+			const type = locationParts.length > 0 && locationParts[0] === 'sbs' ? 1 : 0
+			const locationId = locationParts.length > 1 ? parseInt(locationParts[1], 10) : 0
+			await self.client.setVideoMixerConfig(format, order, type, locationId)
+		},
+	}
+
+	actions[ActionId.MixerFormat] = {
+		name: 'Change mixer format',
+		options: [
+			{
+				type: 'dropdown',
+				id: 'format',
+				label: 'Format',
+				default: 1,
+				choices: [
+					{ id: 1, label: 'same as SDI input' },
+					{ id: 2, label: 'same as HDMI input' },
+				],
+			},
+		],
+		callback: async (event) => {
+			const format = +(event.options.format ?? 1)
+
+			const settings = (await self.client.getSettings()) as UltraEncodeGetSettingsResponse
+			if (!settings || !settings['input-source']?.mixer) {
+				self.log('error', 'Failed to get mixer settings')
+				return
+			}
+
+			const mixerSettings = settings['input-source'].mixer
+			await self.client.setVideoMixerConfig(
+				format,
+				mixerSettings['is-hdmi-top'],
+				mixerSettings.type,
+				mixerSettings.location,
+			)
+		},
+	}
+
 	self.setActionDefinitions(actions)
 
 	// uptdate cache
 	cache.StreamServers = serializedServerChoices
+	cache.InputSources = serializedInputChoices
 }
 
 async function record(client: MagewellClient, action: CompanionActionEvent) {

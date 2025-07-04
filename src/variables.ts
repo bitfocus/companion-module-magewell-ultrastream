@@ -5,11 +5,13 @@ import {
 	DeviceStatus,
 	Duration,
 	MagewellProduct,
+	UltraEncodeGetSettingsResponse,
 	UltraEncodeGetStatusResponse,
 	UltraEncodeRtmpLiveStatus,
 	UltraEncodeSrtListenerLiveStatus,
 	UltraStreamGetStatusResponse,
 } from './magewell.js'
+import { BuildMixerLocationItems } from './utility.js'
 
 export enum VariableId {
 	ProductType = 'product_type',
@@ -21,6 +23,10 @@ export enum VariableId {
 	StreamDurationHMS = 'stream_duration_hms',
 	RecordDurationHM = 'record_duration_hm',
 	RecordDurationHMS = 'record_duration_hms',
+	InputSourceId = 'input_source_id',
+	InputSourceName = 'input_source_name',
+	MixerLocation = 'mixer_location',
+	MixerHdmiTop = 'mixer_hdmi_top',
 }
 
 export function UpdateVariableDefinitions(self: InstanceBase<MagewellConfig>, state: MagewellState): void {
@@ -35,6 +41,10 @@ export function UpdateVariableDefinitions(self: InstanceBase<MagewellConfig>, st
 	variables.push({ variableId: VariableId.StreamDurationHMS, name: 'Streaming duration (hh:mm:ss)' })
 	variables.push({ variableId: VariableId.RecordDurationHM, name: 'Recording duration (hh:mm)' })
 	variables.push({ variableId: VariableId.RecordDurationHMS, name: 'Recording duration (hh:mm:ss)' })
+	variables.push({ variableId: VariableId.InputSourceId, name: 'Current input source ID (e.g. 1)' })
+	variables.push({ variableId: VariableId.InputSourceName, name: 'Current input source name (e.g. "SDI Input")' })
+	variables.push({ variableId: VariableId.MixerLocation, name: 'Mixer location (e.g. "PIP: Left Top Corner")' })
+	variables.push({ variableId: VariableId.MixerHdmiTop, name: 'Mixer HDMI Top (1 or 0)' })
 
 	self.setVariableDefinitions(variables)
 
@@ -47,6 +57,9 @@ export function UpdateVariables(self: InstanceBase<MagewellConfig>, state: Magew
 	let streamRunMs = 0
 	let recordRunMs = 0
 	let mainBps = 0
+	let inputSourceId: number | undefined
+	let mixerLocation: string = ''
+	let mixerHdmiTop: string = ''
 	if (state.productType == MagewellProduct.UltraEncode) {
 		const status = state.status as UltraEncodeGetStatusResponse
 		const liveStatus = status['live-status']?.live?.length > 0 ? status['live-status'].live[0] : undefined
@@ -69,6 +82,18 @@ export function UpdateVariables(self: InstanceBase<MagewellConfig>, state: Magew
 		const recStatus = status['rec-status']?.rec?.length > 0 ? status['rec-status'].rec[0] : undefined
 		if (recStatus) {
 			recordRunMs = recStatus['run-ms']
+		}
+		inputSourceId = status['input-source']
+
+		const settings = state.settings as UltraEncodeGetSettingsResponse
+		if (settings && settings['input-source']) {
+			const inputSource = settings['input-source']
+			const locationType = inputSource.mixer?.['type'] === 1 ? 'sbs' : 'pip'
+			const locationValue = inputSource.mixer?.location !== undefined ? inputSource.mixer.location.toString() : ''
+			const mixerLocationId = [locationType, locationValue].join('_')
+			const mixerLocationItems = BuildMixerLocationItems(state)
+			mixerLocation = mixerLocationItems.find((item) => item.id === mixerLocationId)?.label ?? ''
+			mixerHdmiTop = inputSource.mixer?.['is-hdmi-top'] !== undefined ? inputSource.mixer['is-hdmi-top'].toString() : ''
 		}
 	} else if (state.productType == MagewellProduct.UltraStream) {
 		const status = state.status as UltraStreamGetStatusResponse
@@ -96,6 +121,10 @@ export function UpdateVariables(self: InstanceBase<MagewellConfig>, state: Magew
 		[VariableId.StreamDurationHMS]: streamDuration[1],
 		[VariableId.RecordDurationHM]: recordDuration[0],
 		[VariableId.RecordDurationHMS]: recordDuration[1],
+		[VariableId.InputSourceId]: inputSourceId?.toString() ?? '',
+		[VariableId.InputSourceName]: state.inputSources?.find((s) => s.value == inputSourceId)?.name ?? '',
+		[VariableId.MixerLocation]: mixerLocation,
+		[VariableId.MixerHdmiTop]: mixerHdmiTop,
 	})
 }
 
