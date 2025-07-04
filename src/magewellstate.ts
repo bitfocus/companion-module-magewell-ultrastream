@@ -4,7 +4,9 @@ import {
 	GetStatusResponse,
 	MagewellModel,
 	MagewellProduct,
+	NameValueElement,
 	StreamServer,
+	VideoMixerInfo,
 } from './magewell.js'
 
 export class MagewellState {
@@ -12,6 +14,8 @@ export class MagewellState {
 	modelType?: MagewellModel | string
 	status?: GetStatusResponse
 	settings?: GetSettingsResponse
+	inputSources?: NameValueElement[]
+	mixerInfo?: VideoMixerInfo
 
 	hasCurStatus(value: DeviceStatus): boolean {
 		if (!this.status) return false

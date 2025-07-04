@@ -9,15 +9,21 @@ import {
 	GetInfoResponse,
 	MagewellProduct,
 	MagewellModel,
+	NameValueElement,
+	UltraEncodeGetInfoResponse,
+	VideoMixerInfo,
 } from './magewell.js'
 import { InstanceBase, InstanceStatus } from '@companion-module/base'
 
 export class MagewellClient {
 	private cookie?: string
 	private initializing: boolean = false
+	private authState?: boolean
 
 	private productType?: MagewellProduct
 	private modelType?: MagewellModel | string
+	private inputSources?: NameValueElement[]
+	private mixerInfo?: VideoMixerInfo
 
 	constructor(
 		private instance: InstanceBase<MagewellConfig>,
@@ -90,6 +96,14 @@ export class MagewellClient {
 		return this.modelType
 	}
 
+	getInputSources(): NameValueElement[] | undefined {
+		return this.inputSources
+	}
+
+	getMixerInfo(): VideoMixerInfo | undefined {
+		return this.mixerInfo
+	}
+
 	isConfigValid(config: MagewellConfig): boolean {
 		return !(!config.username || !config.password || !config.host)
 	}
@@ -121,13 +135,18 @@ export class MagewellClient {
 				if (!result) return
 
 				if (result.data.result != 0) {
-					this.instance.log('warn', 'Authentication failed.')
+					if (this.authState !== false) {
+						// If we already tried to authenticate and failed, we don't want to log again
+						this.instance.log('warn', 'Authentication failed.')
+					}
 					this.instance.updateStatus(InstanceStatus.ConnectionFailure, 'Authentication failed')
+					this.authState = false
 					return
 				}
 
 				// store login cookie
 				this.cookie = (result.headers['set-cookie'] || [])[0]
+				this.authState = true
 
 				const info = await this.getInfo()
 
@@ -138,6 +157,21 @@ export class MagewellClient {
 						? (product as MagewellProduct)
 						: undefined
 					this.modelType = info?.product['module-name']
+
+					const inputSource =
+						(info as any)['input-source'] !== undefined
+							? (info as UltraEncodeGetInfoResponse)['input-source']
+							: undefined
+					if (inputSource && inputSource.sources && Array.isArray(inputSource.sources)) {
+						this.inputSources = inputSource.sources.map((source) => ({
+							name: source.name,
+							value: source.value,
+						}))
+						this.instance.log('debug', `${JSON.stringify(this.inputSources)}`)
+					}
+					if (inputSource && inputSource['video-mixer']) {
+						this.mixerInfo = inputSource['video-mixer']
+					}
 				}
 
 				// get status
@@ -173,6 +207,22 @@ export class MagewellClient {
 
 	async getSettings(): Promise<GetSettingsResponse | undefined> {
 		return this.get<GetSettingsResponse>('get-settings')
+	}
+
+	async selectInputSource(input: number): Promise<BaseResponse | undefined> {
+		return this.get<BaseResponse>('select-input-source', `&input-source=${input}`)
+	}
+
+	async setVideoMixerConfig(
+		inputDevice: number,
+		isHdmiTop: number,
+		type: number,
+		location: number,
+	): Promise<BaseResponse | undefined> {
+		return this.get<BaseResponse>(
+			'set-video-mixer-config',
+			`&input-device=${inputDevice}&is-hdmi-top=${isHdmiTop}&type=${type}&location=${location}`,
+		)
 	}
 
 	async startRecording(): Promise<BaseResponse | undefined> {
