@@ -3,9 +3,11 @@ import { MagewellConfig } from './config.js'
 import { FeedbackId } from './feedbacks.js'
 import { ActionId, ActionOperation } from './actions.js'
 import { MagewellState } from './magewellstate.js'
+import { MagewellProduct } from './magewell.js'
 
 export interface PresetCache {
 	StreamServers?: string
+	Product?: MagewellProduct
 }
 
 export function UpdatePresetDefinitions(
@@ -22,7 +24,7 @@ export function UpdatePresetDefinitions(
 	)
 
 	const serializedServerChoices = JSON.stringify(serverChoices)
-	if (cache.StreamServers === serializedServerChoices) {
+	if (cache.StreamServers === serializedServerChoices && cache.Product === state.productType) {
 		// No need to update the action definitions if the server choices haven't changed
 		return
 	}
@@ -96,6 +98,44 @@ export function UpdatePresetDefinitions(
 				up: [],
 			},
 		],
+	}
+
+	if (state.productType === MagewellProduct.UltraEncode) {
+		presets['vumeter'] = {
+			type: 'button',
+			category: 'Status',
+			name: 'Vumeter',
+			style: {
+				text: 'Volume',
+				size: '14',
+				color: combineRgb(255, 255, 255),
+				bgcolor: combineRgb(0, 0, 0),
+			},
+			feedbacks: [
+				{
+					feedbackId: FeedbackId.Vumeters,
+					options: { threshold: 33 },
+					style: {
+						bgcolor: combineRgb(48, 234, 43),
+					},
+				},
+				{
+					feedbackId: FeedbackId.Vumeters,
+					options: { threshold: 88 },
+					style: {
+						bgcolor: combineRgb(255, 246, 0),
+					},
+				},
+				{
+					feedbackId: FeedbackId.Vumeters,
+					options: { threshold: 94 },
+					style: {
+						bgcolor: combineRgb(255, 63, 26),
+					},
+				},
+			],
+			steps: [],
+		}
 	}
 
 	if (serverChoices.length > 0) {
