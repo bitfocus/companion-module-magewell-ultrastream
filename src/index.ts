@@ -125,13 +125,15 @@ export class ModuleInstance extends InstanceBase<MagewellConfig> {
 
 			if (oldStatus?.['cur-status'] != status?.['cur-status']) {
 				// Current feedbacks only handle the cur-status
-				this.checkFeedbacks()
+				this.checkFeedbacks(FeedbackId.Stream, FeedbackId.Record)
 			}
 
 			UpdateVariables(this, this.state)
 
 			// Don't query settings if the status is not available
 			if (!status) return
+
+			this.checkFeedbacks(FeedbackId.Vumeters)
 
 			const settings = await this.client.getSettings()
 			const oldSettings = this.state.settings
