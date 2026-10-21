@@ -8,6 +8,9 @@ import { MagewellClient } from './client.js'
 import { MagewellState } from './magewellstate.js'
 import { PresetCache, UpdatePresetDefinitions } from './presets.js'
 
+// Number of consecutive failed status queries (1 per second) before the connection is shown as failed
+const MaxQueryFailures = 3
+
 export class ModuleInstance extends InstanceBase<MagewellConfig> {
 	config!: MagewellConfig // Setup in init()
 	client!: MagewellClient
@@ -91,10 +94,7 @@ export class ModuleInstance extends InstanceBase<MagewellConfig> {
 
 	async initMagewell(): Promise<void> {
 		const status = await this.client.initialize()
-		this.state.productType = this.client.getProductType()
-		this.state.modelType = this.client.getModelType()
-		this.state.inputSources = this.client.getInputSources()
-		this.state.mixerInfo = this.client.getMixerInfo()
+		this.syncDeviceInfo()
 		this.state.status = status
 
 		this.updateActions() // export actions
@@ -108,6 +108,28 @@ export class ModuleInstance extends InstanceBase<MagewellConfig> {
 			this.intervalQueryRunning = false
 			this.updater = setInterval(() => this.triggerQueryStatus(), 1000)
 		}
+	}
+
+	// Copy device info (product, model, input sources, mixer) from the client into the state.
+	// Returns true if anything changed, e.g. because the device was not reachable during init.
+	syncDeviceInfo(): boolean {
+		const productType = this.client.getProductType()
+		const modelType = this.client.getModelType()
+		const inputSources = this.client.getInputSources()
+		const mixerInfo = this.client.getMixerInfo()
+
+		const changed =
+			this.state.productType !== productType ||
+			this.state.modelType !== modelType ||
+			JSON.stringify(this.state.inputSources) !== JSON.stringify(inputSources) ||
+			JSON.stringify(this.state.mixerInfo) !== JSON.stringify(mixerInfo)
+
+		this.state.productType = productType
+		this.state.modelType = modelType
+		this.state.inputSources = inputSources
+		this.state.mixerInfo = mixerInfo
+
+		return changed
 	}
 
 	triggerQueryStatus(): void {
@@ -129,6 +151,13 @@ export class ModuleInstance extends InstanceBase<MagewellConfig> {
 			this.intervalQueryRunning = true
 
 			const status = await this.client.getStatus()
+
+			// The client logs in again on its own when the device becomes reachable later,
+			// so pick up device info that was missing during init.
+			if (this.syncDeviceInfo()) {
+				this.updateVariableDefinitions()
+				checkFeedbacks = true
+			}
 
 			const oldStatus = this.state.status
 			this.state.status = status
@@ -154,9 +183,16 @@ export class ModuleInstance extends InstanceBase<MagewellConfig> {
 					checkFeedbacks = true
 				}
 
+				if (this.intervalQueryFailures >= MaxQueryFailures) {
+					this.updateStatus(InstanceStatus.Ok, 'Connected')
+				}
 				this.intervalQueryFailures = 0 // Reset failures on successful query
 			} else {
 				this.intervalQueryFailures += 1
+				if (this.intervalQueryFailures == MaxQueryFailures) {
+					this.log('warn', 'Device not reachable')
+					this.updateStatus(InstanceStatus.ConnectionFailure, 'Device not reachable')
+				}
 			}
 
 			if (checkFeedbacks) {
