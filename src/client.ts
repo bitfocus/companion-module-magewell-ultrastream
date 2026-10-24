@@ -15,10 +15,27 @@ import {
 } from './magewell.js'
 import { InstanceBase, InstanceStatus } from '@companion-module/base'
 
+// Number of consecutive requests the device leaves unanswered before it is shown as unreachable.
+// Status polls start every second, but each unanswered request waits for the full request timeout.
+const MaxUnansweredRequests = 3
+
+// True if the device did not answer at all (unreachable, refused or timed out),
+// as opposed to answering with an error
+function isUnanswered(e: unknown): boolean {
+	return axios.isAxiosError(e) && !e.response
+}
+
+function describeError(e: unknown): string {
+	if (axios.isCancel(e)) return 'timed out'
+	if (axios.isAxiosError(e)) return e.response ? `HTTP ${e.response.status}` : (e.code ?? e.message)
+	return String(e)
+}
+
 export class MagewellClient {
 	private cookie?: string
 	private initializing: boolean = false
 	private authState?: boolean
+	private unansweredRequests: number = 0
 
 	private productType?: MagewellProduct
 	private modelType?: MagewellModel | string
@@ -45,20 +62,23 @@ export class MagewellClient {
 			}
 		}
 
-		let result: AxiosResponse<T | any> | undefined = undefined
+		let result: AxiosResponse<T | any>
 		try {
 			result = await axios.get<T>(url, {
 				headers: { Cookie: this.cookie },
 				signal: AbortSignal.timeout(config.timeout ?? DefaultTimeout),
 			})
-		} catch (e: any) {
-			this.instance.log('warn', `${method} call failed: ${e.response?.data.result}`)
-		}
-
-		if (!result) {
-			this.instance.log('debug', `Missing result for ${method}`)
+		} catch (e) {
+			if (isUnanswered(e)) {
+				this.requestUnanswered(method, e)
+			} else {
+				this.deviceAnswered()
+				this.instance.log('warn', `${method} call failed: ${describeError(e)}`)
+			}
 			return
 		}
+
+		this.deviceAnswered()
 
 		if (result.data.result != 0) {
 			if (
@@ -108,6 +128,25 @@ export class MagewellClient {
 		return !(!config.username || !config.password || !config.host)
 	}
 
+	private requestUnanswered(method: string, e: unknown): void {
+		this.unansweredRequests += 1
+		// Log only up to the point where the device is marked unreachable, not on every poll after that
+		if (this.unansweredRequests <= MaxUnansweredRequests) {
+			this.instance.log('debug', `${method} call got no answer: ${describeError(e)}`)
+		}
+		if (this.unansweredRequests == MaxUnansweredRequests) {
+			this.instance.log('warn', 'Device not reachable')
+			this.instance.updateStatus(InstanceStatus.ConnectionFailure, 'Device not reachable')
+		}
+	}
+
+	private deviceAnswered(): void {
+		if (this.unansweredRequests >= MaxUnansweredRequests) {
+			this.instance.log('info', 'Device reachable again')
+		}
+		this.unansweredRequests = 0
+	}
+
 	async initialize(force: boolean = false): Promise<GetStatusResponse | undefined> {
 		if (this.initializing) return
 		this.initializing = true
@@ -123,8 +162,6 @@ export class MagewellClient {
 				return
 			}
 
-			this.instance.updateStatus(InstanceStatus.Connecting, 'Connecting')
-
 			const passwordHash = createHash('md5')
 				.update(<string>config.password)
 				.digest('hex')
@@ -132,13 +169,15 @@ export class MagewellClient {
 			try {
 				const url = `http://${config.host}/usapi?method=login&id=${config.username}&pass=${passwordHash}`
 				const result = await axios.get(url, { signal: AbortSignal.timeout(config.timeout ?? DefaultTimeout) })
-				if (!result) return
+				this.deviceAnswered()
 
 				if (result.data.result != 0) {
 					if (this.authState !== false) {
 						// If we already tried to authenticate and failed, we don't want to log again
 						this.instance.log('warn', 'Authentication failed.')
 					}
+					// Drop the old session, so the next request logs in again instead of retrying with it
+					this.cookie = undefined
 					this.instance.updateStatus(InstanceStatus.ConnectionFailure, 'Authentication failed')
 					this.authState = false
 					return
@@ -187,9 +226,12 @@ export class MagewellClient {
 				this.instance.updateStatus(InstanceStatus.Ok, 'Connected')
 				return status
 			} catch (e) {
-				this.instance.log('warn', 'Authentication failed.')
-				this.instance.log('debug', 'Exception: ' + e)
-				this.instance.updateStatus(InstanceStatus.ConnectionFailure, 'Authentication failed')
+				if (isUnanswered(e)) {
+					this.requestUnanswered('login', e)
+				} else {
+					this.instance.log('warn', `Login failed: ${describeError(e)}`)
+					this.instance.updateStatus(InstanceStatus.UnknownError, 'Login failed')
+				}
 				return
 			}
 		} finally {
@@ -254,6 +296,9 @@ export class MagewellClient {
 			await this.get<BaseResponse>('logout')
 		}
 
+		// Start over, e.g. with a different host or credentials
 		this.cookie = undefined
+		this.authState = undefined
+		this.unansweredRequests = 0
 	}
 }

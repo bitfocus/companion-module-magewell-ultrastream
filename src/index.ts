@@ -7,17 +7,14 @@ import { FeedbackCache, UpdateFeedbacks } from './feedbacks.js'
 import { MagewellClient } from './client.js'
 import { MagewellState } from './magewellstate.js'
 import { PresetCache, UpdatePresetDefinitions } from './presets.js'
-
-// Number of consecutive failed status polls before the connection is shown as failed.
-// Polls start every second, but each failed one can wait for the full request timeout.
-const MaxQueryFailures = 3
+import { ApiResultCode } from './magewell.js'
 
 export class ModuleInstance extends InstanceBase<MagewellConfig> {
 	config!: MagewellConfig // Setup in init()
 	client!: MagewellClient
 	updater?: NodeJS.Timeout
 	intervalQueryRunning: boolean = false
-	intervalQueryFailures: number = 0
+	lastStatus?: { status: InstanceStatus; message: string | null }
 	state: MagewellState = new MagewellState()
 	actionCache: ActionCache = {}
 	feedbackCache: FeedbackCache = {}
@@ -93,7 +90,18 @@ export class ModuleInstance extends InstanceBase<MagewellConfig> {
 		return this.config
 	}
 
+	// Only pass on changes: Companion writes a line to the connection log for every status update,
+	// and the status is set again on every poll
+	override updateStatus(status: InstanceStatus, message?: string | null): void {
+		message = message ?? null
+		if (this.lastStatus?.status === status && this.lastStatus.message === message) return
+
+		this.lastStatus = { status, message }
+		super.updateStatus(status, message)
+	}
+
 	async initMagewell(): Promise<void> {
+		this.updateStatus(InstanceStatus.Connecting, 'Connecting')
 		const status = await this.client.initialize()
 		this.syncDeviceInfo()
 		this.state.status = status
@@ -184,16 +192,9 @@ export class ModuleInstance extends InstanceBase<MagewellConfig> {
 					checkFeedbacks = true
 				}
 
-				if (this.intervalQueryFailures >= MaxQueryFailures) {
-					this.log('info', 'Device reachable again')
+				// Failures are reported by the client, which knows whether the device did not answer or refused
+				if (status.result == <number>ApiResultCode.retSucceed) {
 					this.updateStatus(InstanceStatus.Ok, 'Connected')
-				}
-				this.intervalQueryFailures = 0 // Reset failures on successful query
-			} else {
-				this.intervalQueryFailures += 1
-				if (this.intervalQueryFailures == MaxQueryFailures) {
-					this.log('warn', 'Device not reachable')
-					this.updateStatus(InstanceStatus.ConnectionFailure, 'Device not reachable')
 				}
 			}
 
