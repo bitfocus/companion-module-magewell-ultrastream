@@ -203,11 +203,17 @@ export interface UltraEncodeGetStatusResponse extends BaseResponse {
 	sysstat: any // device running status
 	'live-status': {
 		// live status
-		live: UltraEncodeLiveStatus[]
+		// result and run-ms cover all servers together. They are missing from the API docs,
+		// but an Ultra Encode SDI Plus returns them.
+		result?: number
+		'run-ms'?: number
+		live: UltraEncodeLiveStatus[] // one entry per enabled server, not ordered by id
 	}
 	'upgrade-status': any // update status
 	'rec-status': {
-		// recording status
+		// recording status, with result and run-ms covering all recordings like for live-status
+		result?: number
+		'run-ms'?: number
 		rec: UltraEncodeRecordingStatus[]
 	}
 	'format-status': any // disk format status

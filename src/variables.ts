@@ -62,10 +62,13 @@ export function UpdateVariables(self: InstanceBase<MagewellConfig>, state: Magew
 	let mixerHdmiTop: string = ''
 	if (state.productType == MagewellProduct.UltraEncode) {
 		const status = state.status as UltraEncodeGetStatusResponse
+		// Take the durations from the overall status: the first live entry is not necessarily
+		// a running server, e.g. an idle NDI HX entry on the AIO.
+		streamRunMs = status['live-status']?.['run-ms'] ?? 0
+		recordRunMs = status['rec-status']?.['run-ms'] ?? 0
+
 		const liveStatus = status['live-status']?.live?.length > 0 ? status['live-status'].live[0] : undefined
 		if (liveStatus) {
-			streamRunMs = liveStatus['run-ms']
-
 			if ((<UltraEncodeRtmpLiveStatus>liveStatus)['inst-bps'] !== undefined) {
 				mainBps = (<UltraEncodeRtmpLiveStatus>liveStatus)['inst-bps']
 			} else if ((<UltraEncodeSrtListenerLiveStatus>liveStatus)['clients'] !== undefined) {
@@ -78,10 +81,6 @@ export function UpdateVariables(self: InstanceBase<MagewellConfig>, state: Magew
 			} else {
 				mainBps = 0
 			}
-		}
-		const recStatus = status['rec-status']?.rec?.length > 0 ? status['rec-status'].rec[0] : undefined
-		if (recStatus) {
-			recordRunMs = recStatus['run-ms']
 		}
 		inputSourceId = status['input-source']
 
