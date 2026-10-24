@@ -3,7 +3,7 @@ import { GetConfigFields, type MagewellConfig } from './config.js'
 import { UpdateVariableDefinitions, UpdateVariables } from './variables.js'
 import { UpgradeScripts } from './upgrades.js'
 import { ActionCache, UpdateActions } from './actions.js'
-import { FeedbackCache, UpdateFeedbacks } from './feedbacks.js'
+import { FeedbackCache, FeedbackId, UpdateFeedbacks } from './feedbacks.js'
 import { MagewellClient } from './client.js'
 import { MagewellState } from './magewellstate.js'
 import { PresetCache, UpdatePresetDefinitions } from './presets.js'
@@ -210,6 +210,9 @@ export class ModuleInstance extends InstanceBase<MagewellConfig> {
 
 			if (checkFeedbacks) {
 				this.checkFeedbacks()
+			} else if (this.state.productType == MagewellProduct.UltraEncode) {
+				// The volume changes on every poll, unlike what the checks above look at
+				this.checkFeedbacks(FeedbackId.Vumeters)
 			}
 		} finally {
 			this.intervalQueryRunning = false
