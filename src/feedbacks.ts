@@ -87,13 +87,10 @@ export function UpdateFeedbacks(self: InstanceBase<MagewellConfig>, state: Magew
 				id: 'server',
 				default: state.settings?.['stream-server'][0]?.id ?? 1,
 				choices:
-					state.settings?.['stream-server'].map(
-						(s) =>
-							<DropdownChoice>{
-								id: s.id,
-								label: s.name,
-							},
-					) ?? [],
+					state.settings?.['stream-server'].map((s) => ({
+						id: s.id,
+						label: s.name,
+					})) ?? [],
 			},
 		],
 		callback: (evt: CompanionFeedbackInfo) => {

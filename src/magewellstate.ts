@@ -9,6 +9,11 @@ import {
 	VideoMixerInfo,
 } from './magewell.js'
 
+// 'cur-status' is a mask of DeviceStatus flags, so test for the flag's bits rather than comparing values
+export function hasStatusFlag(curStatus: number, flag: number): boolean {
+	return (curStatus & flag) == flag
+}
+
 export class MagewellState {
 	productType?: MagewellProduct
 	modelType?: MagewellModel | string
@@ -19,7 +24,7 @@ export class MagewellState {
 
 	hasCurStatus(value: DeviceStatus): boolean {
 		if (!this.status) return false
-		return (this.status['cur-status'] & value) == <number>value
+		return hasStatusFlag(this.status['cur-status'], value)
 	}
 
 	getServers(): StreamServer[] {

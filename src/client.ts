@@ -81,10 +81,7 @@ export class MagewellClient {
 		this.deviceAnswered()
 
 		if (result.data.result != 0) {
-			if (
-				result.data.result == <number>ApiResultCode.errNeedAuth ||
-				result.data.result == <number>ApiResultCode.errPasswd
-			) {
+			if (result.data.result == ApiResultCode.errNeedAuth || result.data.result == ApiResultCode.errPasswd) {
 				// Auth error, try to reconnect
 				if (!retry) {
 					this.instance.log(

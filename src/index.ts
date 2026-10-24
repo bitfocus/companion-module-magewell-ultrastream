@@ -7,7 +7,6 @@ import { FeedbackCache, UpdateFeedbacks } from './feedbacks.js'
 import { MagewellClient } from './client.js'
 import { MagewellState } from './magewellstate.js'
 import { PresetCache, UpdatePresetDefinitions } from './presets.js'
-import { ApiResultCode } from './magewell.js'
 
 export class ModuleInstance extends InstanceBase<MagewellConfig> {
 	config!: MagewellConfig // Setup in init()
@@ -193,7 +192,7 @@ export class ModuleInstance extends InstanceBase<MagewellConfig> {
 				}
 
 				// Failures are reported by the client, which knows whether the device did not answer or refused
-				if (status.result == <number>ApiResultCode.retSucceed) {
+				if (status.result == 0) {
 					this.updateStatus(InstanceStatus.Ok, 'Connected')
 				}
 			}

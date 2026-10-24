@@ -108,14 +108,8 @@ export function UpdateVariables(self: InstanceBase<MagewellConfig>, state: Magew
 	self.setVariableValues({
 		[VariableId.ProductType]: state.productType ?? '',
 		[VariableId.ModelType]: state.modelType ?? '',
-		[VariableId.RecordStatus]:
-			(state.status['cur-status'] & DeviceStatus.statusRecord) == <number>DeviceStatus.statusRecord
-				? 'Recording'
-				: 'Record',
-		[VariableId.StreamStatus]:
-			(state.status['cur-status'] & DeviceStatus.statusLiving) == <number>DeviceStatus.statusLiving
-				? 'Streaming'
-				: 'Stream',
+		[VariableId.RecordStatus]: state.hasCurStatus(DeviceStatus.statusRecord) ? 'Recording' : 'Record',
+		[VariableId.StreamStatus]: state.hasCurStatus(DeviceStatus.statusLiving) ? 'Streaming' : 'Stream',
 		[VariableId.StreamBitrate]: (mainBps / 125000).toFixed(2),
 		[VariableId.StreamDurationHM]: streamDuration[0],
 		[VariableId.StreamDurationHMS]: streamDuration[1],

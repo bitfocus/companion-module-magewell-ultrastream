@@ -2,7 +2,7 @@ import { CompanionActionDefinitions, CompanionActionEvent, DropdownChoice } from
 import { MagewellClient } from './client.js'
 import type { ModuleInstance } from './index.js'
 import { DeviceStatus, UltraEncodeGetSettingsResponse } from './magewell.js'
-import { MagewellState } from './magewellstate.js'
+import { hasStatusFlag, MagewellState } from './magewellstate.js'
 import { BuildInputSourceItems, BuildMixerLocationItems, BuildServerItems } from './utility.js'
 
 export enum ActionId {
@@ -208,7 +208,7 @@ async function record(client: MagewellClient, action: CompanionActionEvent) {
 		await client.stopRecording()
 	} else {
 		const status = await client.getStatus()
-		if (status && (status['cur-status'] & DeviceStatus.statusRecord) == <number>DeviceStatus.statusRecord) {
+		if (status && hasStatusFlag(status['cur-status'], DeviceStatus.statusRecord)) {
 			await client.stopRecording()
 		} else {
 			await client.startRecording()
@@ -223,7 +223,7 @@ async function stream(client: MagewellClient, action: CompanionActionEvent) {
 		await client.stopLive()
 	} else {
 		const status = await client.getStatus()
-		if (status && (status['cur-status'] & DeviceStatus.statusLiving) == <number>DeviceStatus.statusLiving) {
+		if (status && hasStatusFlag(status['cur-status'], DeviceStatus.statusLiving)) {
 			await client.stopLive()
 		} else {
 			await client.startLive()
