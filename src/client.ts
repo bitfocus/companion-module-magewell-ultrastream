@@ -165,7 +165,8 @@ export class MagewellClient {
 				.digest('hex')
 
 			try {
-				const url = `http://${config.host}/usapi?method=login&id=${config.username}&pass=${passwordHash}`
+				const username = encodeURIComponent(<string>config.username)
+				const url = `http://${config.host}/usapi?method=login&id=${username}&pass=${passwordHash}`
 				const result = await axios.get(url, { signal: AbortSignal.timeout(config.timeout ?? DefaultTimeout) })
 				this.deviceAnswered()
 
