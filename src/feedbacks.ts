@@ -6,14 +6,22 @@ import {
 	InstanceBase,
 } from '@companion-module/base'
 import { MagewellConfig } from './config.js'
-import { MagewellState } from './magewellstate.js'
+import { MagewellState, SignalInput } from './magewellstate.js'
 import {
 	DeviceStatus,
 	MagewellProduct,
+	StorageMedium,
 	UltraEncodeGetSettingsResponse,
 	UltraEncodeGetStatusResponse,
 } from './magewell.js'
-import { BuildInputSourceItems, BuildMixerLocationItems, BuildServerItems } from './utility.js'
+import {
+	BuildInputSourceItems,
+	BuildMixerLocationItems,
+	BuildRecChannelItems,
+	BuildServerItems,
+	BuildSignalInputItems,
+	BuildStorageItems,
+} from './utility.js'
 
 export enum FeedbackId {
 	Stream = 'stream',
@@ -23,23 +31,30 @@ export enum FeedbackId {
 	Mixer = 'mixer',
 	MixerFormat = 'mixer_format',
 	Vumeters = 'vumeters',
+	InputSignal = 'input_signal',
+	Storage = 'storage',
+	RecChannel = 'rec_channel',
 }
 
 export interface FeedbackCache {
 	StreamServers?: string
 	Product?: MagewellProduct
 	InputSources?: string
+	RecChannels?: string
 }
 
 export function UpdateFeedbacks(self: InstanceBase<MagewellConfig>, state: MagewellState, cache: FeedbackCache): void {
 	const serverChoices: DropdownChoice[] = BuildServerItems(state)
 	const inputChoices: DropdownChoice[] = BuildInputSourceItems(state)
+	const recChannelChoices: DropdownChoice[] = BuildRecChannelItems(state)
 
 	const serializedServerChoices = JSON.stringify(serverChoices)
 	const serializedInputChoices = JSON.stringify(inputChoices)
+	const serializedRecChannelChoices = JSON.stringify(recChannelChoices)
 	if (
 		cache.StreamServers === serializedServerChoices &&
 		cache.InputSources === serializedInputChoices &&
+		cache.RecChannels === serializedRecChannelChoices &&
 		cache.Product === state.productType
 	) {
 		// No need to update the feedback definitions if the server choices and input choices haven't changed
@@ -236,8 +251,75 @@ export function UpdateFeedbacks(self: InstanceBase<MagewellConfig>, state: Magew
 		feedbacks[FeedbackId.Vumeters] = undefined
 	}
 
+	const signalInputChoices = BuildSignalInputItems(state)
+	feedbacks[FeedbackId.InputSignal] = {
+		name: 'Change color based on Input signal',
+		type: 'boolean',
+		description: 'If there is a signal on the input change the color',
+		defaultStyle: {
+			bgcolor: combineRgb(0, 153, 0),
+			color: combineRgb(255, 255, 255),
+		},
+		options: [
+			{
+				type: 'dropdown',
+				label: 'Input',
+				id: 'input',
+				default: 'active',
+				choices: signalInputChoices,
+			},
+		],
+		callback: (evt: CompanionFeedbackInfo) => state.hasInputSignal((evt.options.input ?? 'active') as SignalInput),
+	}
+
+	const storageChoices = BuildStorageItems(state)
+	feedbacks[FeedbackId.Storage] = {
+		name: 'Change color based on Storage status',
+		type: 'boolean',
+		description: 'If the storage medium is connected and ready change the color',
+		defaultStyle: {
+			bgcolor: combineRgb(0, 153, 0),
+			color: combineRgb(255, 255, 255),
+		},
+		options: [
+			{
+				type: 'dropdown',
+				label: 'Storage',
+				id: 'medium',
+				default: StorageMedium.Usb,
+				choices: storageChoices,
+			},
+		],
+		callback: (evt: CompanionFeedbackInfo) => state.isStorageReady(+(evt.options.medium ?? StorageMedium.Usb)),
+	}
+
+	if (state.productType == MagewellProduct.UltraEncode) {
+		feedbacks[FeedbackId.RecChannel] = {
+			name: 'Change color based on Record channel status',
+			type: 'boolean',
+			description: 'If the record channel is enabled change the color',
+			defaultStyle: {
+				bgcolor: combineRgb(222, 0, 0),
+				color: combineRgb(255, 255, 255),
+			},
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Record channel',
+					id: 'channel',
+					default: recChannelChoices.length > 0 ? recChannelChoices[0].id : 0,
+					choices: recChannelChoices,
+				},
+			],
+			callback: (evt: CompanionFeedbackInfo) => state.isRecChannelEnabled(+(evt.options.channel ?? 0)),
+		}
+	} else {
+		feedbacks[FeedbackId.RecChannel] = undefined
+	}
+
 	self.setFeedbackDefinitions(feedbacks)
 	cache.StreamServers = serializedServerChoices
 	cache.Product = state.productType
 	cache.InputSources = serializedInputChoices
+	cache.RecChannels = serializedRecChannelChoices
 }

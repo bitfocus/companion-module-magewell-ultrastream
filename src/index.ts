@@ -7,6 +7,7 @@ import { FeedbackCache, UpdateFeedbacks } from './feedbacks.js'
 import { MagewellClient } from './client.js'
 import { MagewellState } from './magewellstate.js'
 import { PresetCache, UpdatePresetDefinitions } from './presets.js'
+import { MagewellProduct } from './magewell.js'
 
 export class ModuleInstance extends InstanceBase<MagewellConfig> {
 	config!: MagewellConfig // Setup in init()
@@ -168,9 +169,10 @@ export class ModuleInstance extends InstanceBase<MagewellConfig> {
 			}
 
 			const oldStatus = this.state.status
+			const oldConditions = this.state.getStatusConditions()
 			this.state.status = status
 
-			if (oldStatus?.['cur-status'] != status?.['cur-status']) {
+			if (oldStatus?.['cur-status'] != status?.['cur-status'] || oldConditions !== this.state.getStatusConditions()) {
 				checkFeedbacks = true
 			}
 
@@ -181,6 +183,15 @@ export class ModuleInstance extends InstanceBase<MagewellConfig> {
 				const settings = await this.client.getSettings()
 				const oldSettings = this.state.settings
 				this.state.settings = settings
+
+				// Record channels can also be switched in the web UI of the device, so poll them with the settings
+				if (this.state.productType == MagewellProduct.UltraEncode) {
+					const recChannels = (await this.client.getRecChannels())?.['rec-channels']
+					if (JSON.stringify(recChannels) !== JSON.stringify(this.state.recChannels)) {
+						checkFeedbacks = true
+					}
+					this.state.recChannels = recChannels
+				}
 
 				this.updateActions()
 				this.updateFeedbacks()

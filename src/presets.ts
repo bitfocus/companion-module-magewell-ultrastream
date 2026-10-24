@@ -4,11 +4,19 @@ import { FeedbackId } from './feedbacks.js'
 import { ActionId, ActionOperation } from './actions.js'
 import { MagewellState } from './magewellstate.js'
 import { MagewellProduct } from './magewell.js'
-import { BuildInputSourceItems, BuildMixerLocationItems, BuildServerItems } from './utility.js'
+import {
+	BuildInputSourceItems,
+	BuildMixerLocationItems,
+	BuildRecChannelItems,
+	BuildServerItems,
+	BuildSignalInputItems,
+	BuildStorageItems,
+} from './utility.js'
 
 export interface PresetCache {
 	StreamServers?: string
 	InputSources?: string
+	RecChannels?: string
 	Product?: MagewellProduct
 }
 
@@ -19,12 +27,15 @@ export function UpdatePresetDefinitions(
 ): void {
 	const serverChoices: DropdownChoice[] = BuildServerItems(state)
 	const inputChoices: DropdownChoice[] = BuildInputSourceItems(state)
+	const recChannelChoices: DropdownChoice[] = BuildRecChannelItems(state)
 
 	const serializedServerChoices = JSON.stringify(serverChoices)
 	const serializedInputChoices = JSON.stringify(inputChoices)
+	const serializedRecChannelChoices = JSON.stringify(recChannelChoices)
 	if (
 		cache.StreamServers === serializedServerChoices &&
 		cache.InputSources === serializedInputChoices &&
+		cache.RecChannels === serializedRecChannelChoices &&
 		cache.Product === state.productType
 	) {
 		// No need to update the preset definitions if the server choices and input choices haven't changed
@@ -137,6 +148,113 @@ export function UpdatePresetDefinitions(
 				},
 			],
 			steps: [],
+		}
+	}
+
+	presets['preset_reboot'] = {
+		type: 'button',
+		category: 'Commands',
+		name: 'Reboot device',
+		style: {
+			text: 'REBOOT',
+			size: '14',
+			color: combineRgb(255, 255, 255),
+			bgcolor: combineRgb(0, 0, 0),
+		},
+		feedbacks: [],
+		steps: [
+			{
+				down: [{ actionId: ActionId.Reboot, options: {} }],
+				up: [],
+			},
+		],
+	}
+
+	for (const input of BuildSignalInputItems(state)) {
+		presets[`preset_signal_${input.id}`] = {
+			type: 'button',
+			category: 'Status',
+			name: `Input signal: ${input.label}`,
+			style: {
+				text: input.id === 'active' ? 'SIGNAL' : `${input.label} SIGNAL`,
+				size: '14',
+				color: combineRgb(255, 255, 255),
+				bgcolor: combineRgb(0, 0, 0),
+			},
+			feedbacks: [
+				{
+					feedbackId: FeedbackId.InputSignal,
+					options: { input: input.id },
+					style: {
+						bgcolor: combineRgb(0, 153, 0),
+						color: combineRgb(255, 255, 255),
+					},
+				},
+			],
+			steps: [],
+		}
+	}
+
+	for (const medium of BuildStorageItems(state)) {
+		presets[`preset_storage_${medium.id}`] = {
+			type: 'button',
+			category: 'Status',
+			name: `Storage: ${medium.label}`,
+			style: {
+				text: medium.label,
+				size: '14',
+				color: combineRgb(255, 255, 255),
+				bgcolor: combineRgb(0, 0, 0),
+			},
+			feedbacks: [
+				{
+					feedbackId: FeedbackId.Storage,
+					options: { medium: medium.id },
+					style: {
+						bgcolor: combineRgb(0, 153, 0),
+						color: combineRgb(255, 255, 255),
+					},
+				},
+			],
+			steps: [],
+		}
+	}
+
+	for (const channel of recChannelChoices) {
+		presets[`preset_rec_channel_${channel.id}`] = {
+			type: 'button',
+			category: 'Record channels',
+			name: `Enable/Disable recording to ${channel.label}`,
+			style: {
+				text: `REC to ${channel.label}`,
+				size: '14',
+				color: combineRgb(255, 255, 255),
+				bgcolor: combineRgb(0, 0, 0),
+			},
+			feedbacks: [
+				{
+					feedbackId: FeedbackId.RecChannel,
+					options: { channel: channel.id },
+					style: {
+						bgcolor: combineRgb(222, 0, 0),
+						color: combineRgb(255, 255, 255),
+					},
+				},
+			],
+			steps: [
+				{
+					down: [
+						{
+							actionId: ActionId.RecChannel,
+							options: {
+								action: ActionOperation.Toggle,
+								channel: channel.id,
+							},
+						},
+					],
+					up: [],
+				},
+			],
 		}
 	}
 
@@ -302,7 +420,9 @@ export function UpdatePresetDefinitions(
 
 	self.setPresetDefinitions(presets)
 	cache.StreamServers = serializedServerChoices
-	cache.StreamServers = serializedInputChoices
+	cache.InputSources = serializedInputChoices
+	cache.RecChannels = serializedRecChannelChoices
+	cache.Product = state.productType
 }
 
 function BuildMixerPreset(

@@ -1,9 +1,9 @@
 import { CompanionActionDefinitions, CompanionActionEvent, DropdownChoice } from '@companion-module/base'
 import { MagewellClient } from './client.js'
 import type { ModuleInstance } from './index.js'
-import { DeviceStatus, UltraEncodeGetSettingsResponse } from './magewell.js'
+import { DeviceStatus, MagewellProduct, UltraEncodeGetSettingsResponse } from './magewell.js'
 import { hasStatusFlag, MagewellState } from './magewellstate.js'
-import { BuildInputSourceItems, BuildMixerLocationItems, BuildServerItems } from './utility.js'
+import { BuildInputSourceItems, BuildMixerLocationItems, BuildRecChannelItems, BuildServerItems } from './utility.js'
 
 export enum ActionId {
 	Stream = 'stream',
@@ -12,6 +12,8 @@ export enum ActionId {
 	Input = 'input',
 	Mixer = 'mixer',
 	MixerFormat = 'mixer_format',
+	RecChannel = 'rec_channel',
+	Reboot = 'reboot',
 }
 
 export enum ActionOperation {
@@ -23,16 +25,25 @@ export enum ActionOperation {
 export interface ActionCache {
 	StreamServers?: string
 	InputSources?: string
+	RecChannels?: string
+	Product?: MagewellProduct
 }
 
 export function UpdateActions(self: ModuleInstance, state: MagewellState, cache: ActionCache): void {
 	const serverChoices: DropdownChoice[] = BuildServerItems(state)
 	const inputChoices: DropdownChoice[] = BuildInputSourceItems(state)
+	const recChannelChoices: DropdownChoice[] = BuildRecChannelItems(state)
 
 	const serializedServerChoices = JSON.stringify(serverChoices)
 	const serializedInputChoices = JSON.stringify(inputChoices)
-	if (cache.StreamServers === serializedServerChoices && cache.InputSources === serializedInputChoices) {
-		// No need to update the action definitions if the server choices and input choices haven't changed
+	const serializedRecChannelChoices = JSON.stringify(recChannelChoices)
+	if (
+		cache.StreamServers === serializedServerChoices &&
+		cache.InputSources === serializedInputChoices &&
+		cache.RecChannels === serializedRecChannelChoices &&
+		cache.Product === state.productType
+	) {
+		// No need to update the action definitions if the choices and the product haven't changed
 		return
 	}
 
@@ -194,11 +205,53 @@ export function UpdateActions(self: ModuleInstance, state: MagewellState, cache:
 		},
 	}
 
+	// Only the Ultra Encode has record channels (USB, SD card or internal storage, NAS)
+	if (state.productType == MagewellProduct.UltraEncode) {
+		actions[ActionId.RecChannel] = {
+			name: 'Enable/Disable record channel',
+			description: 'Choose where to record to. This does not start or stop a recording.',
+			options: [
+				{
+					type: 'dropdown',
+					id: 'action',
+					label: 'Action',
+					default: ActionOperation.StartEnable,
+					choices: [
+						{ id: ActionOperation.StartEnable, label: 'Enable' },
+						{ id: ActionOperation.StopDisable, label: 'Disable' },
+						{ id: ActionOperation.Toggle, label: 'Toggle' },
+					],
+				},
+				{
+					type: 'dropdown',
+					id: 'channel',
+					label: 'Record channel',
+					default: recChannelChoices.length > 0 ? recChannelChoices[0].id : 0,
+					choices: recChannelChoices,
+				},
+			],
+			callback: async (event) => {
+				recChannel(self.client, event).catch((e) => self.log('error', 'Failed to execute action: ' + e))
+			},
+		}
+	}
+
+	actions[ActionId.Reboot] = {
+		name: 'Reboot device',
+		description: 'The device is unreachable for a few minutes while it restarts.',
+		options: [],
+		callback: async () => {
+			self.client.reboot().catch((e) => self.log('error', 'Failed to execute action: ' + e))
+		},
+	}
+
 	self.setActionDefinitions(actions)
 
 	// uptdate cache
 	cache.StreamServers = serializedServerChoices
 	cache.InputSources = serializedInputChoices
+	cache.RecChannels = serializedRecChannelChoices
+	cache.Product = state.productType
 }
 
 async function record(client: MagewellClient, action: CompanionActionEvent) {
@@ -227,6 +280,24 @@ async function stream(client: MagewellClient, action: CompanionActionEvent) {
 			await client.stopLive()
 		} else {
 			await client.startLive()
+		}
+	}
+}
+
+async function recChannel(client: MagewellClient, action: CompanionActionEvent) {
+	const selectedChannel = +(action.options.channel ?? 0)
+	if (action.options.action == ActionOperation.StartEnable) {
+		await client.enableRecChannel(selectedChannel)
+	} else if (action.options.action == ActionOperation.StopDisable) {
+		await client.disableRecChannel(selectedChannel)
+	} else {
+		const recChannels = await client.getRecChannels()
+		if (recChannels) {
+			if (recChannels['rec-channels'].find((c) => c.id == selectedChannel)?.['is-use'] == 1) {
+				await client.disableRecChannel(selectedChannel)
+			} else {
+				await client.enableRecChannel(selectedChannel)
+			}
 		}
 	}
 }

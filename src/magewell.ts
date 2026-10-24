@@ -177,8 +177,8 @@ export interface UltraStreamGetStatusResponse extends BaseResponse {
 	'living-test': any
 	'check-upgrade': any
 	'input-signal': InputSignal
-	usb: any
-	sd: any
+	usb?: DiskInfo
+	sd?: DiskInfo
 	wifi: any
 	eth: any
 	mobile: any
@@ -223,7 +223,7 @@ export interface UltraEncodeGetStatusResponse extends BaseResponse {
 	'check-upgrade': any // online update check status
 	'conn-wifi': any // wifi connection status
 	'input-signal': InputSignalStatus // input signal
-	'disk-info': any // disk information
+	'disk-info'?: UltraEncodeDiskInfo[] // disk information: USB, SD card or internal storage, NAS
 	wifi: any // wifi network
 	softap: any // AP network
 	eth: any // ethernet network
@@ -261,6 +261,38 @@ export interface UltraEncodeRecordingStatus {
 	'parted-num': number
 	'video-frame-count': number
 	'audio-frame-count': number
+}
+
+// Storage medium of a record channel (type), and of an entry in disk-info (disk-type)
+export const enum StorageMedium {
+	Usb = 0,
+	Sd = 1, // SD card, or the internal storage of an Ultra Encode Plus
+	Nas = 2,
+}
+
+// The API docs don't give the value of DiskValid, but devices report 1 for a ready medium
+export const DiskValid = 0x01
+
+export interface RecordChannel {
+	id: number
+	type: StorageMedium
+	'is-use': number
+	'stream-index': number
+}
+
+export interface GetRecChannelsResponse extends BaseResponse {
+	'rec-channels': RecordChannel[]
+}
+
+export interface DiskInfo {
+	'disk-status': number // mask, see DiskValid
+	'total-size': number
+	'free-size': number
+}
+
+export interface UltraEncodeDiskInfo extends DiskInfo {
+	id: number
+	'disk-type': StorageMedium
 }
 
 export interface RecordingStatus {

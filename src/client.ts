@@ -7,6 +7,7 @@ import {
 	ApiResultCode,
 	GetSettingsResponse,
 	GetInfoResponse,
+	GetRecChannelsResponse,
 	MagewellProduct,
 	MagewellModel,
 	NameValueElement,
@@ -286,6 +287,22 @@ export class MagewellClient {
 
 	async disableServer(server: number): Promise<BaseResponse | undefined> {
 		return this.get<BaseResponse>('enable-server', `&id=${server}&is-use=0`)
+	}
+
+	async getRecChannels(): Promise<GetRecChannelsResponse | undefined> {
+		return this.get<GetRecChannelsResponse>('get-rec-channels')
+	}
+
+	async enableRecChannel(channel: number): Promise<BaseResponse | undefined> {
+		return this.get<BaseResponse>('enable-rec-channel', `&id=${channel}&is-use=1`)
+	}
+
+	async disableRecChannel(channel: number): Promise<BaseResponse | undefined> {
+		return this.get<BaseResponse>('enable-rec-channel', `&id=${channel}&is-use=0`)
+	}
+
+	async reboot(): Promise<BaseResponse | undefined> {
+		return this.get<BaseResponse>('reboot')
 	}
 
 	async disconnect(): Promise<void> {

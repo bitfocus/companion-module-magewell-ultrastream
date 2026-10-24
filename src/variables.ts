@@ -27,6 +27,7 @@ export enum VariableId {
 	InputSourceName = 'input_source_name',
 	MixerLocation = 'mixer_location',
 	MixerHdmiTop = 'mixer_hdmi_top',
+	InputSignal = 'input_signal',
 }
 
 export function UpdateVariableDefinitions(self: InstanceBase<MagewellConfig>, state: MagewellState): void {
@@ -45,6 +46,7 @@ export function UpdateVariableDefinitions(self: InstanceBase<MagewellConfig>, st
 	variables.push({ variableId: VariableId.InputSourceName, name: 'Current input source name (e.g. "SDI Input")' })
 	variables.push({ variableId: VariableId.MixerLocation, name: 'Mixer location (e.g. "PIP: Left Top Corner")' })
 	variables.push({ variableId: VariableId.MixerHdmiTop, name: 'Mixer HDMI Top (1 or 0)' })
+	variables.push({ variableId: VariableId.InputSignal, name: 'Format of the input signal (e.g. 1920x1080p25)' })
 
 	self.setVariableDefinitions(variables)
 
@@ -118,7 +120,17 @@ export function UpdateVariables(self: InstanceBase<MagewellConfig>, state: Magew
 		[VariableId.InputSourceName]: state.inputSources?.find((s) => s.value == inputSourceId)?.name ?? '',
 		[VariableId.MixerLocation]: mixerLocation,
 		[VariableId.MixerHdmiTop]: mixerHdmiTop,
+		[VariableId.InputSignal]: formatInputSignal(state),
 	})
+}
+
+// Format of the active input, e.g. 1920x1080p25, or empty without a signal
+function formatInputSignal(state: MagewellState): string {
+	const signal = state.getInputSignal('active')
+	if (!signal || !state.hasInputSignal('active')) return ''
+
+	const scan = signal.interlaced ? 'i' : 'p'
+	return `${signal.cx}x${signal.cy}${scan}${Number(signal['frame-rate'].toFixed(2))}`
 }
 
 function formatDuration(durationObj: Duration | undefined): [string, string] {
