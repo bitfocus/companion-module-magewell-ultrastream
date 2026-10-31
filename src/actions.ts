@@ -145,14 +145,17 @@ export function UpdateActions(self: ModuleInstance, state: MagewellState, cache:
 		actions[ActionId.Mixer] = {
 			name: 'Change mixer settings',
 			options: [
+				// Numeric ids, like the mixer feedback and the presets. Buttons from before 1.1.1 may still
+				// store the text '0' or '1': Companion matches dropdown values loosely (==), so they still show
+				// the right choice, and the callback converts the value with +. No upgrade script needed.
 				{
 					type: 'dropdown',
 					id: 'order',
 					label: 'Layer Order',
-					default: '0',
+					default: 0,
 					choices: [
-						{ id: '1', label: 'HDMI on top' },
-						{ id: '0', label: 'SDI on top' },
+						{ id: 1, label: 'HDMI on top' },
+						{ id: 0, label: 'SDI on top' },
 					],
 				},
 				{
