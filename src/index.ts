@@ -1,6 +1,6 @@
 import { InstanceBase, runEntrypoint, InstanceStatus, SomeCompanionConfigField } from '@companion-module/base'
 import { GetConfigFields, type MagewellConfig } from './config.js'
-import { UpdateVariableDefinitions, UpdateVariables } from './variables.js'
+import { ClearVariables, UpdateVariableDefinitions, UpdateVariables } from './variables.js'
 import { UpgradeScripts } from './upgrades.js'
 import { ActionCache, UpdateActions } from './actions.js'
 import { FeedbackCache, FeedbackId, UpdateFeedbacks } from './feedbacks.js'
@@ -76,6 +76,10 @@ export class ModuleInstance extends InstanceBase<MagewellConfig> {
 		// The host may now point to a different device, so start without anything from the old one
 		this.config = config
 		this.state.reset()
+		// The polls skip both while the new host doesn't answer, and with base 1.12 Companion doesn't
+		// re-check feedbacks when their definitions change
+		ClearVariables(this)
+		this.checkFeedbacks()
 
 		try {
 			await this.initMagewell()

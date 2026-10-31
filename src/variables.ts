@@ -1,4 +1,4 @@
-import { CompanionVariableDefinition, InstanceBase } from '@companion-module/base'
+import { CompanionVariableDefinition, CompanionVariableValues, InstanceBase } from '@companion-module/base'
 import { MagewellState } from './magewellstate.js'
 import { MagewellConfig } from './config.js'
 import {
@@ -51,6 +51,16 @@ export function UpdateVariableDefinitions(self: InstanceBase<MagewellConfig>, st
 	self.setVariableDefinitions(variables)
 
 	UpdateVariables(self, state)
+}
+
+// Empty all values, e.g. when the host changes. Sending the definitions again doesn't do that:
+// Companion keeps the values of variables whose ids already exist.
+export function ClearVariables(self: InstanceBase<MagewellConfig>): void {
+	const values: CompanionVariableValues = {}
+	for (const id of Object.values(VariableId)) {
+		values[id] = undefined
+	}
+	self.setVariableValues(values)
 }
 
 export function UpdateVariables(self: InstanceBase<MagewellConfig>, state: MagewellState): void {
