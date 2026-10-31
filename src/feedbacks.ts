@@ -136,7 +136,7 @@ export function UpdateFeedbacks(self: InstanceBase<MagewellConfig>, state: Magew
 					type: 'dropdown',
 					label: 'Input Source',
 					id: 'input',
-					default: inputChoices.length > 0 ? inputChoices[0].id : 1,
+					default: inputChoices[0].id,
 					choices: inputChoices,
 				},
 			],
