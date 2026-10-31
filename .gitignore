@@ -7,3 +7,4 @@ DEBUG-*
 /.yarn
 /data/
 /*.tgz
+/.vscode
