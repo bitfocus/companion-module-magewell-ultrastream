@@ -66,13 +66,16 @@ export class ModuleInstance extends InstanceBase<MagewellConfig> {
 	}
 
 	async configUpdated(config: MagewellConfig): Promise<void> {
-		this.config = config
-
+		// Log out with the old config, so the logout goes to the device the session belongs to
 		try {
 			await this.client.disconnect()
 		} catch {
 			/* ignore */
 		}
+
+		// The host may now point to a different device, so start without anything from the old one
+		this.config = config
+		this.state.reset()
 
 		try {
 			await this.initMagewell()

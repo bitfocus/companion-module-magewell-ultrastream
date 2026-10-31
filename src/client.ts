@@ -311,9 +311,14 @@ export class MagewellClient {
 			await this.get<BaseResponse>('logout')
 		}
 
-		// Start over, e.g. with a different host or credentials
+		// Start over, e.g. with a different host or credentials. Clear the device info too:
+		// initialize() only sets input sources and mixer info when the device reports them.
 		this.cookie = undefined
 		this.authState = undefined
 		this.unansweredRequests = 0
+		this.productType = undefined
+		this.modelType = undefined
+		this.inputSources = undefined
+		this.mixerInfo = undefined
 	}
 }

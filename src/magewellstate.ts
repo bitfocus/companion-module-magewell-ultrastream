@@ -34,6 +34,17 @@ export class MagewellState {
 	mixerInfo?: VideoMixerInfo
 	recChannels?: RecordChannel[]
 
+	// Clear everything from the device. Keeps the object, because the feedback callbacks hold on to it.
+	reset(): void {
+		this.productType = undefined
+		this.modelType = undefined
+		this.status = undefined
+		this.settings = undefined
+		this.inputSources = undefined
+		this.mixerInfo = undefined
+		this.recChannels = undefined
+	}
+
 	hasCurStatus(value: DeviceStatus): boolean {
 		if (!this.status) return false
 		return hasStatusFlag(this.status['cur-status'], value)
