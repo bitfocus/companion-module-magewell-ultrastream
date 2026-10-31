@@ -146,8 +146,10 @@ export function UpdateActions(self: ModuleInstance, state: MagewellState, cache:
 			name: 'Change mixer settings',
 			options: [
 				// Numeric ids, like the mixer feedback and the presets. Buttons from before 1.1.1 may still
-				// store the text '0' or '1': Companion matches dropdown values loosely (==), so they still show
-				// the right choice, and the callback converts the value with +. No upgrade script needed.
+				// store the text '0' or '1'. That needs no upgrade script: Companion matches dropdown values
+				// loosely ("o.value == value // Intentionally loose for compatibility" in
+				// webui/src/Components/DropdownInputField.tsx, since Companion v4.0.0), so those buttons still
+				// show the right choice, and the callback converts the value with +.
 				{
 					type: 'dropdown',
 					id: 'order',
