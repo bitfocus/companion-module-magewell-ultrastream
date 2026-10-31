@@ -17,6 +17,7 @@ export interface PresetCache {
 	StreamServers?: string
 	InputSources?: string
 	RecChannels?: string
+	MixerLocations?: string
 	Product?: MagewellProduct
 }
 
@@ -28,14 +29,17 @@ export function UpdatePresetDefinitions(
 	const serverChoices: DropdownChoice[] = BuildServerItems(state)
 	const inputChoices: DropdownChoice[] = BuildInputSourceItems(state)
 	const recChannelChoices: DropdownChoice[] = BuildRecChannelItems(state)
+	const mixerLocations: DropdownChoice[] = BuildMixerLocationItems(state)
 
 	const serializedServerChoices = JSON.stringify(serverChoices)
 	const serializedInputChoices = JSON.stringify(inputChoices)
 	const serializedRecChannelChoices = JSON.stringify(recChannelChoices)
+	const serializedMixerLocations = JSON.stringify(mixerLocations)
 	if (
 		cache.StreamServers === serializedServerChoices &&
 		cache.InputSources === serializedInputChoices &&
 		cache.RecChannels === serializedRecChannelChoices &&
+		cache.MixerLocations === serializedMixerLocations &&
 		cache.Product === state.productType
 	) {
 		// No need to update the preset definitions if the server choices and input choices haven't changed
@@ -413,15 +417,15 @@ export function UpdatePresetDefinitions(
 			],
 		}
 
-		const locationChoices = BuildMixerLocationItems(state)
-		BuildMixerPreset(locationChoices, presets, 0, 'Mixer (SDI on top)')
-		BuildMixerPreset(locationChoices, presets, 1, 'Mixer (HDMI on top)')
+		BuildMixerPreset(mixerLocations, presets, 0, 'Mixer (SDI on top)')
+		BuildMixerPreset(mixerLocations, presets, 1, 'Mixer (HDMI on top)')
 	}
 
 	self.setPresetDefinitions(presets)
 	cache.StreamServers = serializedServerChoices
 	cache.InputSources = serializedInputChoices
 	cache.RecChannels = serializedRecChannelChoices
+	cache.MixerLocations = serializedMixerLocations
 	cache.Product = state.productType
 }
 

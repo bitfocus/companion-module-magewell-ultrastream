@@ -26,6 +26,7 @@ export interface ActionCache {
 	StreamServers?: string
 	InputSources?: string
 	RecChannels?: string
+	MixerLocations?: string
 	Product?: MagewellProduct
 }
 
@@ -33,14 +34,17 @@ export function UpdateActions(self: ModuleInstance, state: MagewellState, cache:
 	const serverChoices: DropdownChoice[] = BuildServerItems(state)
 	const inputChoices: DropdownChoice[] = BuildInputSourceItems(state)
 	const recChannelChoices: DropdownChoice[] = BuildRecChannelItems(state)
+	const mixerLocations: DropdownChoice[] = BuildMixerLocationItems(state)
 
 	const serializedServerChoices = JSON.stringify(serverChoices)
 	const serializedInputChoices = JSON.stringify(inputChoices)
 	const serializedRecChannelChoices = JSON.stringify(recChannelChoices)
+	const serializedMixerLocations = JSON.stringify(mixerLocations)
 	if (
 		cache.StreamServers === serializedServerChoices &&
 		cache.InputSources === serializedInputChoices &&
 		cache.RecChannels === serializedRecChannelChoices &&
+		cache.MixerLocations === serializedMixerLocations &&
 		cache.Product === state.productType
 	) {
 		// No need to update the action definitions if the choices and the product haven't changed
@@ -116,93 +120,98 @@ export function UpdateActions(self: ModuleInstance, state: MagewellState, cache:
 		},
 	}
 
-	actions[ActionId.Input] = {
-		name: 'Select input source',
-		options: [
-			{
-				type: 'dropdown',
-				id: 'input',
-				label: 'Input Source',
-				default: inputChoices.length > 0 ? inputChoices[0].id : 1,
-				choices: inputChoices,
+	// Input source and mixer actions only for devices that report them in get-info (the Ultra Encode models).
+	// The Ultra Stream API has neither select-input-source nor set-video-mixer-config.
+	if (inputChoices.length > 0) {
+		actions[ActionId.Input] = {
+			name: 'Select input source',
+			options: [
+				{
+					type: 'dropdown',
+					id: 'input',
+					label: 'Input Source',
+					default: inputChoices.length > 0 ? inputChoices[0].id : 1,
+					choices: inputChoices,
+				},
+			],
+			callback: async (event) => {
+				const selectedInput = +(event.options.input ?? 1)
+				await self.client.selectInputSource(selectedInput)
 			},
-		],
-		callback: async (event) => {
-			const selectedInput = +(event.options.input ?? 1)
-			await self.client.selectInputSource(selectedInput)
-		},
+		}
 	}
 
-	const mixerLocations = BuildMixerLocationItems(state)
-	actions[ActionId.Mixer] = {
-		name: 'Change mixer settings',
-		options: [
-			{
-				type: 'dropdown',
-				id: 'order',
-				label: 'Layer Order',
-				default: '0',
-				choices: [
-					{ id: '1', label: 'HDMI on top' },
-					{ id: '0', label: 'SDI on top' },
-				],
+	if (state.mixerInfo) {
+		actions[ActionId.Mixer] = {
+			name: 'Change mixer settings',
+			options: [
+				{
+					type: 'dropdown',
+					id: 'order',
+					label: 'Layer Order',
+					default: '0',
+					choices: [
+						{ id: '1', label: 'HDMI on top' },
+						{ id: '0', label: 'SDI on top' },
+					],
+				},
+				{
+					type: 'dropdown',
+					id: 'location',
+					label: 'Location',
+					default: mixerLocations.length > 0 ? mixerLocations[0].id : 'pip_1',
+					choices: mixerLocations,
+				},
+			],
+			callback: async (event) => {
+				const settings = (await self.client.getSettings()) as UltraEncodeGetSettingsResponse
+				if (!settings || !settings['input-source']?.mixer) {
+					self.log('error', 'Failed to get mixer settings')
+					return
+				}
+
+				const format = settings['input-source'].mixer['input-device'] ?? 1
+				const order = +(event.options.order ?? 0)
+				const location = event.options.location ?? 'pip_1'
+				const locationParts = (location + '').split('_')
+				const type = locationParts.length > 0 && locationParts[0] === 'sbs' ? 1 : 0
+				const locationId = locationParts.length > 1 ? parseInt(locationParts[1], 10) : 0
+				await self.client.setVideoMixerConfig(format, order, type, locationId)
 			},
-			{
-				type: 'dropdown',
-				id: 'location',
-				label: 'Location',
-				default: mixerLocations.length > 0 ? mixerLocations[0].id : 'pip_1',
-				choices: mixerLocations,
+		}
+
+		actions[ActionId.MixerFormat] = {
+			name: 'Change mixer format',
+			options: [
+				{
+					type: 'dropdown',
+					id: 'format',
+					label: 'Format',
+					default: 1,
+					choices: [
+						{ id: 1, label: 'same as SDI input' },
+						{ id: 2, label: 'same as HDMI input' },
+					],
+				},
+			],
+			callback: async (event) => {
+				const format = +(event.options.format ?? 1)
+
+				const settings = (await self.client.getSettings()) as UltraEncodeGetSettingsResponse
+				if (!settings || !settings['input-source']?.mixer) {
+					self.log('error', 'Failed to get mixer settings')
+					return
+				}
+
+				const mixerSettings = settings['input-source'].mixer
+				await self.client.setVideoMixerConfig(
+					format,
+					mixerSettings['is-hdmi-top'],
+					mixerSettings.type,
+					mixerSettings.location,
+				)
 			},
-		],
-		callback: async (event) => {
-			const settings = (await self.client.getSettings()) as UltraEncodeGetSettingsResponse
-			if (!settings || !settings['input-source']?.mixer) {
-				self.log('error', 'Failed to get mixer settings')
-				return
-			}
-
-			const format = settings['input-source'].mixer['input-device'] ?? 1
-			const order = +(event.options.order ?? 0)
-			const location = event.options.location ?? 'pip_1'
-			const locationParts = (location + '').split('_')
-			const type = locationParts.length > 0 && locationParts[0] === 'sbs' ? 1 : 0
-			const locationId = locationParts.length > 1 ? parseInt(locationParts[1], 10) : 0
-			await self.client.setVideoMixerConfig(format, order, type, locationId)
-		},
-	}
-
-	actions[ActionId.MixerFormat] = {
-		name: 'Change mixer format',
-		options: [
-			{
-				type: 'dropdown',
-				id: 'format',
-				label: 'Format',
-				default: 1,
-				choices: [
-					{ id: 1, label: 'same as SDI input' },
-					{ id: 2, label: 'same as HDMI input' },
-				],
-			},
-		],
-		callback: async (event) => {
-			const format = +(event.options.format ?? 1)
-
-			const settings = (await self.client.getSettings()) as UltraEncodeGetSettingsResponse
-			if (!settings || !settings['input-source']?.mixer) {
-				self.log('error', 'Failed to get mixer settings')
-				return
-			}
-
-			const mixerSettings = settings['input-source'].mixer
-			await self.client.setVideoMixerConfig(
-				format,
-				mixerSettings['is-hdmi-top'],
-				mixerSettings.type,
-				mixerSettings.location,
-			)
-		},
+		}
 	}
 
 	// Only the Ultra Encode has record channels (USB, SD card or internal storage, NAS)
@@ -251,6 +260,7 @@ export function UpdateActions(self: ModuleInstance, state: MagewellState, cache:
 	cache.StreamServers = serializedServerChoices
 	cache.InputSources = serializedInputChoices
 	cache.RecChannels = serializedRecChannelChoices
+	cache.MixerLocations = serializedMixerLocations
 	cache.Product = state.productType
 }
 

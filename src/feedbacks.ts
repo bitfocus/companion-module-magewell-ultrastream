@@ -41,20 +41,24 @@ export interface FeedbackCache {
 	Product?: MagewellProduct
 	InputSources?: string
 	RecChannels?: string
+	MixerLocations?: string
 }
 
 export function UpdateFeedbacks(self: InstanceBase<MagewellConfig>, state: MagewellState, cache: FeedbackCache): void {
 	const serverChoices: DropdownChoice[] = BuildServerItems(state)
 	const inputChoices: DropdownChoice[] = BuildInputSourceItems(state)
 	const recChannelChoices: DropdownChoice[] = BuildRecChannelItems(state)
+	const mixerLocations: DropdownChoice[] = BuildMixerLocationItems(state)
 
 	const serializedServerChoices = JSON.stringify(serverChoices)
 	const serializedInputChoices = JSON.stringify(inputChoices)
 	const serializedRecChannelChoices = JSON.stringify(recChannelChoices)
+	const serializedMixerLocations = JSON.stringify(mixerLocations)
 	if (
 		cache.StreamServers === serializedServerChoices &&
 		cache.InputSources === serializedInputChoices &&
 		cache.RecChannels === serializedRecChannelChoices &&
+		cache.MixerLocations === serializedMixerLocations &&
 		cache.Product === state.productType
 	) {
 		// No need to update the feedback definitions if the server choices and input choices haven't changed
@@ -116,106 +120,115 @@ export function UpdateFeedbacks(self: InstanceBase<MagewellConfig>, state: Magew
 		},
 	}
 
-	feedbacks[FeedbackId.Input] = {
-		name: 'Change color based on selected Input Source',
-		type: 'boolean',
-		description: 'If the input source is active change the color',
-		defaultStyle: {
-			bgcolor: combineRgb(255, 255, 0),
-			color: combineRgb(0, 0, 0),
-		},
-		options: [
-			{
-				type: 'dropdown',
-				label: 'Input Source',
-				id: 'input',
-				default: inputChoices.length > 0 ? inputChoices[0].id : 1,
-				choices: inputChoices,
+	// Input source and mixer feedbacks only for devices that report them in get-info (the Ultra Encode models)
+	if (inputChoices.length > 0) {
+		feedbacks[FeedbackId.Input] = {
+			name: 'Change color based on selected Input Source',
+			type: 'boolean',
+			description: 'If the input source is active change the color',
+			defaultStyle: {
+				bgcolor: combineRgb(255, 255, 0),
+				color: combineRgb(0, 0, 0),
 			},
-		],
-		callback: (evt: CompanionFeedbackInfo) => {
-			if (state.productType != MagewellProduct.UltraEncode) return false
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Input Source',
+					id: 'input',
+					default: inputChoices.length > 0 ? inputChoices[0].id : 1,
+					choices: inputChoices,
+				},
+			],
+			callback: (evt: CompanionFeedbackInfo) => {
+				if (state.productType != MagewellProduct.UltraEncode) return false
 
-			const status = state.status as UltraEncodeGetStatusResponse
-			const selectedInput = +(evt.options.input ?? 1)
-			return status && status['input-source'] === selectedInput
-		},
+				const status = state.status as UltraEncodeGetStatusResponse
+				const selectedInput = +(evt.options.input ?? 1)
+				return status && status['input-source'] === selectedInput
+			},
+		}
+	} else {
+		feedbacks[FeedbackId.Input] = undefined
 	}
 
-	const mixerLocations = BuildMixerLocationItems(state)
-	feedbacks[FeedbackId.Mixer] = {
-		name: 'Change color based on Mixer settings',
-		type: 'boolean',
-		description: 'If the mixer settings match the selected options change the color',
-		defaultStyle: {
-			bgcolor: combineRgb(255, 255, 0),
-			color: combineRgb(0, 0, 0),
-		},
-		options: [
-			{
-				type: 'dropdown',
-				id: 'order',
-				label: 'Layer Order',
-				default: 0,
-				choices: [
-					{ id: 1, label: 'HDMI on top' },
-					{ id: 0, label: 'SDI on top' },
-				],
+	if (state.mixerInfo) {
+		feedbacks[FeedbackId.Mixer] = {
+			name: 'Change color based on Mixer settings',
+			type: 'boolean',
+			description: 'If the mixer settings match the selected options change the color',
+			defaultStyle: {
+				bgcolor: combineRgb(255, 255, 0),
+				color: combineRgb(0, 0, 0),
 			},
-			{
-				type: 'dropdown',
-				id: 'location',
-				label: 'Location',
-				default: mixerLocations.length > 0 ? mixerLocations[0].id : 'pip_1',
-				choices: mixerLocations,
-			},
-		],
-		callback: (evt: CompanionFeedbackInfo) => {
-			const order = +(evt.options.order ?? 0)
-			const location = evt.options.location ?? 'pip_1'
-			const locationParts = (location + '').split('_')
-			const type = locationParts.length > 0 && locationParts[0] === 'sbs' ? 1 : 0
-			const locationId = locationParts.length > 1 ? parseInt(locationParts[1], 10) : 0
+			options: [
+				{
+					type: 'dropdown',
+					id: 'order',
+					label: 'Layer Order',
+					default: 0,
+					choices: [
+						{ id: 1, label: 'HDMI on top' },
+						{ id: 0, label: 'SDI on top' },
+					],
+				},
+				{
+					type: 'dropdown',
+					id: 'location',
+					label: 'Location',
+					default: mixerLocations.length > 0 ? mixerLocations[0].id : 'pip_1',
+					choices: mixerLocations,
+				},
+			],
+			callback: (evt: CompanionFeedbackInfo) => {
+				const order = +(evt.options.order ?? 0)
+				const location = evt.options.location ?? 'pip_1'
+				const locationParts = (location + '').split('_')
+				const type = locationParts.length > 0 && locationParts[0] === 'sbs' ? 1 : 0
+				const locationId = locationParts.length > 1 ? parseInt(locationParts[1], 10) : 0
 
-			const settings = state.settings as UltraEncodeGetSettingsResponse
-			if (!settings || !settings['input-source'] || !settings['input-source'].mixer) return false
-			const mixerSettings = settings['input-source']?.mixer
-			return (
-				mixerSettings &&
-				mixerSettings['is-hdmi-top'] === order &&
-				mixerSettings['type'] === type &&
-				mixerSettings['location'] === locationId
-			)
-		},
-	}
-
-	feedbacks[FeedbackId.MixerFormat] = {
-		name: 'Change color based on Mixer format',
-		type: 'boolean',
-		description: 'If the mixer format matches the selected options change the color',
-		defaultStyle: {
-			bgcolor: combineRgb(255, 255, 0),
-			color: combineRgb(0, 0, 0),
-		},
-		options: [
-			{
-				type: 'dropdown',
-				id: 'format',
-				label: 'Format',
-				default: 1,
-				choices: [
-					{ id: 1, label: 'same as SDI input' },
-					{ id: 2, label: 'same as HDMI input' },
-				],
+				const settings = state.settings as UltraEncodeGetSettingsResponse
+				if (!settings || !settings['input-source'] || !settings['input-source'].mixer) return false
+				const mixerSettings = settings['input-source']?.mixer
+				return (
+					mixerSettings &&
+					mixerSettings['is-hdmi-top'] === order &&
+					mixerSettings['type'] === type &&
+					mixerSettings['location'] === locationId
+				)
 			},
-		],
-		callback: (evt: CompanionFeedbackInfo) => {
-			const format = +(evt.options.format ?? 1)
-			const settings = state.settings as UltraEncodeGetSettingsResponse
-			if (!settings || !settings['input-source'] || !settings['input-source'].mixer) return false
-			const mixerSettings = settings['input-source']?.mixer
-			return mixerSettings && mixerSettings['input-device'] === format
-		},
+		}
+
+		feedbacks[FeedbackId.MixerFormat] = {
+			name: 'Change color based on Mixer format',
+			type: 'boolean',
+			description: 'If the mixer format matches the selected options change the color',
+			defaultStyle: {
+				bgcolor: combineRgb(255, 255, 0),
+				color: combineRgb(0, 0, 0),
+			},
+			options: [
+				{
+					type: 'dropdown',
+					id: 'format',
+					label: 'Format',
+					default: 1,
+					choices: [
+						{ id: 1, label: 'same as SDI input' },
+						{ id: 2, label: 'same as HDMI input' },
+					],
+				},
+			],
+			callback: (evt: CompanionFeedbackInfo) => {
+				const format = +(evt.options.format ?? 1)
+				const settings = state.settings as UltraEncodeGetSettingsResponse
+				if (!settings || !settings['input-source'] || !settings['input-source'].mixer) return false
+				const mixerSettings = settings['input-source']?.mixer
+				return mixerSettings && mixerSettings['input-device'] === format
+			},
+		}
+	} else {
+		feedbacks[FeedbackId.Mixer] = undefined
+		feedbacks[FeedbackId.MixerFormat] = undefined
 	}
 
 	if (state.productType === MagewellProduct.UltraEncode) {
@@ -322,4 +335,5 @@ export function UpdateFeedbacks(self: InstanceBase<MagewellConfig>, state: Magew
 	cache.Product = state.productType
 	cache.InputSources = serializedInputChoices
 	cache.RecChannels = serializedRecChannelChoices
+	cache.MixerLocations = serializedMixerLocations
 }
