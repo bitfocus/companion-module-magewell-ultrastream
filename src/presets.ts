@@ -17,7 +17,7 @@ export interface PresetCache {
 	StreamServers?: string
 	InputSources?: string
 	RecChannels?: string
-	MixerLocations?: string
+	MixerInfo?: string
 	Product?: MagewellProduct
 }
 
@@ -34,12 +34,13 @@ export function UpdatePresetDefinitions(
 	const serializedServerChoices = JSON.stringify(serverChoices)
 	const serializedInputChoices = JSON.stringify(inputChoices)
 	const serializedRecChannelChoices = JSON.stringify(recChannelChoices)
-	const serializedMixerLocations = JSON.stringify(mixerLocations)
+	// Compare the mixer info, not the locations: without a mixer and with an empty one they are both empty
+	const serializedMixerInfo = JSON.stringify(state.mixerInfo)
 	if (
 		cache.StreamServers === serializedServerChoices &&
 		cache.InputSources === serializedInputChoices &&
 		cache.RecChannels === serializedRecChannelChoices &&
-		cache.MixerLocations === serializedMixerLocations &&
+		cache.MixerInfo === serializedMixerInfo &&
 		cache.Product === state.productType
 	) {
 		// No need to update the preset definitions if the server choices and input choices haven't changed
@@ -425,7 +426,7 @@ export function UpdatePresetDefinitions(
 	cache.StreamServers = serializedServerChoices
 	cache.InputSources = serializedInputChoices
 	cache.RecChannels = serializedRecChannelChoices
-	cache.MixerLocations = serializedMixerLocations
+	cache.MixerInfo = serializedMixerInfo
 	cache.Product = state.productType
 }
 

@@ -41,7 +41,7 @@ export interface FeedbackCache {
 	Product?: MagewellProduct
 	InputSources?: string
 	RecChannels?: string
-	MixerLocations?: string
+	MixerInfo?: string
 }
 
 export function UpdateFeedbacks(self: InstanceBase<MagewellConfig>, state: MagewellState, cache: FeedbackCache): void {
@@ -53,12 +53,13 @@ export function UpdateFeedbacks(self: InstanceBase<MagewellConfig>, state: Magew
 	const serializedServerChoices = JSON.stringify(serverChoices)
 	const serializedInputChoices = JSON.stringify(inputChoices)
 	const serializedRecChannelChoices = JSON.stringify(recChannelChoices)
-	const serializedMixerLocations = JSON.stringify(mixerLocations)
+	// Compare the mixer info, not the locations: without a mixer and with an empty one they are both empty
+	const serializedMixerInfo = JSON.stringify(state.mixerInfo)
 	if (
 		cache.StreamServers === serializedServerChoices &&
 		cache.InputSources === serializedInputChoices &&
 		cache.RecChannels === serializedRecChannelChoices &&
-		cache.MixerLocations === serializedMixerLocations &&
+		cache.MixerInfo === serializedMixerInfo &&
 		cache.Product === state.productType
 	) {
 		// No need to update the feedback definitions if the server choices and input choices haven't changed
@@ -335,5 +336,5 @@ export function UpdateFeedbacks(self: InstanceBase<MagewellConfig>, state: Magew
 	cache.Product = state.productType
 	cache.InputSources = serializedInputChoices
 	cache.RecChannels = serializedRecChannelChoices
-	cache.MixerLocations = serializedMixerLocations
+	cache.MixerInfo = serializedMixerInfo
 }
